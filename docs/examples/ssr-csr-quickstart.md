@@ -3,18 +3,27 @@
 ## Basic Usage
 
 ```typescript
-import { plip, createSSRLogger, createCSRLogger } from '@ru-dr/plip';
+import { plip, createSSRLogger, createCSRLogger, ssrLogger, csrLogger } from '@ru-dr/plip';
 
-// Default logger (CSR by default)
+// Default logger (CSR optimized)
 plip.info("Hello world!"); // 🫧 [INFO] Hello world!
 
-// Explicit SSR logger for server environments (rich features enabled)
-const serverLogger = createSSRLogger();
-serverLogger.info("Server started", { port: 3000 }); // 🫧 [INFO] Server started {"port":3000}
+// Pre-configured SSR logger (clean server logs)
+ssrLogger.info("Server started", { port: 3000 }); 
+// Output: [2024-01-15T10:30:00.000Z] [INFO] Server started {"port":3000}
 
-// Explicit CSR logger for client environments  
-const clientLogger = createCSRLogger();
-clientLogger.success("User logged in", { userId: 123 }); // 🎉 [SUCCESS] User logged in {"userId":123}
+// Pre-configured CSR logger (rich browser experience)
+csrLogger.success("User logged in", { userId: 123 }); 
+// Output: ✅ [SUCCESS] User logged in {"userId":123}
+
+// Custom loggers with overrides
+const customServerLogger = createSSRLogger({
+  enabledLevels: ['info', 'warn', 'error']
+});
+
+const customClientLogger = createCSRLogger({
+  enableSyntaxHighlighting: true
+});
 ```
 
 ## Framework Examples
@@ -23,13 +32,24 @@ clientLogger.success("User logged in", { userId: 123 }); // 🎉 [SUCCESS] User 
 
 ```typescript
 // lib/loggers.ts
+import { ssrLogger, csrLogger } from '@ru-dr/plip';
+
+// Use pre-configured loggers
+export { ssrLogger as serverLogger, csrLogger as clientLogger };
+
+// Or create custom loggers
 import { createSSRLogger, createCSRLogger } from '@ru-dr/plip';
 
-// Server-side logger for API routes and SSR
-export const serverLogger = createSSRLogger();
+export const customServerLogger = createSSRLogger({
+  enabledLevels: ['info', 'warn', 'error'],
+  includeRequestId: true,
+  enableTimestamp: true
+});
 
-// Client-side logger for browser components
-export const clientLogger = createCSRLogger();
+export const customClientLogger = createCSRLogger({
+  enableSyntaxHighlighting: true,
+  enableColors: true
+});
 ```
 
 ```typescript
@@ -38,7 +58,16 @@ import { serverLogger } from '../../lib/loggers';
 
 export default function handler(req, res) {
   serverLogger.info("API request", { method: req.method, url: req.url });
-  // Rich, colorful output with emojis for enhanced readability
+  // Clean server output: [2024-01-15T10:30:00.000Z] [INFO] API request {"method":"GET","url":"/api/users"}
+  
+  try {
+    const users = await getUsers();
+    serverLogger.success("Users retrieved", { count: users.length });
+    res.json(users);
+  } catch (error) {
+    serverLogger.error("Database error", error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 }
 ```
 
@@ -48,6 +77,28 @@ export default function handler(req, res) {
 import { clientLogger } from '../lib/loggers';
 
 export function UserForm() {
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    clientLogger.info("UserForm component mounted");
+    // Rich browser output: 🫧 [INFO] UserForm component mounted
+  }, []);
+
+  const handleSubmit = async (data) => {
+    clientLogger.time('form-submission');
+    
+    try {
+      const result = await submitForm(data);
+      clientLogger.success("Form submitted successfully", result);
+      // Output: ✅ [SUCCESS] Form submitted successfully {"id":"user-123"}
+    } catch (error) {
+      clientLogger.error("Form submission failed", error);
+      // Output: 💥 [ERROR] Form submission failed Error: Validation failed
+    } finally {
+      clientLogger.timeEnd('form-submission');
+      // Output: ⏱️ [TIMER] form-submission: 245ms
+    }
+  };
   const handleSubmit = async (data) => {
     clientLogger.info("Form submission started"); // 🫧 [INFO] with colors
     try {

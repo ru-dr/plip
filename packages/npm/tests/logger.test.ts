@@ -1,6 +1,13 @@
 // tests/logger.test.ts
 import { test, expect, describe, beforeEach, afterEach } from "bun:test";
-import { plip, createPlip } from "../src/lib/index.js";
+import {
+  plip,
+  createPlip,
+  createSSRLogger,
+  createCSRLogger,
+  ssrLogger,
+  csrLogger
+} from '../src/core/index.js';
 import clc from 'cli-color';
 import { hasColors } from "../src/utils/colors.js";
 

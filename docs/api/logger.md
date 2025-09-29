@@ -2,11 +2,159 @@
 
 Complete API reference for Plip Logger methods and functionality.
 
-## Default Logger
+## Logger Creation
 
-### `plip`
+### Factory Methods
 
-The default logger instance, ready to use immediately:
+#### `createPlip(config?: PlipConfi**Output**: `🔬 [TRACE] Execution path { "function": "processUser", "line": 42 }`
+
+### Context Methods
+
+#### `withContext(context: Record<string, any>): PlipLogger`
+
+Creates a logger instance with attached context that will be included in all subsequent log messages.
+
+```typescript
+const userLogger = logger.withContext({ 
+  userId: "123", 
+  sessionId: "abc-xyz" 
+});
+
+userLogger.info("User performed action", { action: "login" });
+// Includes both the attached context and the additional data
+```
+
+#### `clearContext(): PlipLogger`
+
+Removes all attached context from the logger.
+
+```typescript
+const cleanLogger = userLogger.clearContext();
+cleanLogger.info("Context cleared"); // No context included
+```
+
+### Configuration Methods
+
+#### `configure(config: Partial<PlipConfig>): PlipLogger`
+
+Updates the logger configuration.
+
+```typescript
+logger.configure({
+  enableEmojis: false,
+  enableColors: true,
+  enabledLevels: ['info', 'warn', 'error']
+});
+```
+
+#### `silent(enabled: boolean = true): PlipLogger`
+
+Enables or disables silent mode.
+
+```typescript
+logger.silent(true);   // Suppress all output
+logger.silent(false);  // Re-enable output
+```
+
+### Transport Management
+
+#### `addTransport(transport: BaseTransport): PlipLogger`
+
+Adds a transport to the logger.
+
+```typescript
+import { FileTransport } from '@ru-dr/plip';
+
+const fileTransport = new FileTransport({
+  name: 'file',
+  filePath: '/var/log/app.log'
+});
+
+logger.addTransport(fileTransport);
+```
+
+#### `removeTransport(name: string): PlipLogger`
+
+Removes a transport by name.
+
+```typescript
+logger.removeTransport('file');
+```
+
+#### `clearTransports(): PlipLogger`
+
+Removes all transports from the logger.
+
+```typescript
+logger.clearTransports();
+```
+
+### Performance Methods
+
+#### `time(label: string): void`
+
+Starts a timer with the given label.
+
+```typescript
+logger.time('database-query');
+// ... perform database operation
+logger.timeEnd('database-query');
+```
+
+#### `timeEnd(label: string): void`
+
+Ends a timer and logs the elapsed time.
+
+```typescript
+logger.time('api-call');
+await fetch('/api/data');
+logger.timeEnd('api-call');
+// Output: ⏱️ [TIMER] api-call: 142ms
+```
+
+## Factory Functions PlipLogger`
+
+Creates a new logger instance with custom configuration.
+
+```typescript
+import { createPlip } from '@ru-dr/plip';
+
+const logger = createPlip({
+  enableEmojis: true,
+  enableColors: true,
+  enabledLevels: ['info', 'warn', 'error']
+});
+```
+
+#### `createSSRLogger(overrides?: PlipConfig): PlipLogger`
+
+Creates a logger optimized for Server-Side Rendering.
+
+```typescript
+import { createSSRLogger } from '@ru-dr/plip';
+
+const ssrLogger = createSSRLogger({
+  enabledLevels: ['info', 'warn', 'error']
+});
+```
+
+#### `createCSRLogger(overrides?: PlipConfig): PlipLogger`
+
+Creates a logger optimized for Client-Side Rendering.
+
+```typescript
+import { createCSRLogger } from '@ru-dr/plip';
+
+const csrLogger = createCSRLogger({
+  enableSyntaxHighlighting: true
+});
+```
+
+### Default Logger Instances
+
+#### `plip`
+
+The default CSR-optimized logger instance:
 
 ```typescript
 import { plip } from '@ru-dr/plip';
@@ -14,88 +162,114 @@ import { plip } from '@ru-dr/plip';
 plip.info("Hello from Plip!");
 ```
 
-## Logger Methods
+#### `ssrLogger`
 
-All logger instances (including the default `plip`) provide these methods:
+Pre-configured SSR logger instance:
+
+```typescript
+import { ssrLogger } from '@ru-dr/plip';
+
+ssrLogger.info("Server processing request");
+```
+
+#### `csrLogger`
+
+Pre-configured CSR logger instance:
+
+```typescript
+import { csrLogger } from '@ru-dr/plip';
+
+csrLogger.info("Client-side operation completed");
+```
+
+## PlipLogger Class
+
+### Constructor
+
+```typescript
+import { PlipLogger } from '@ru-dr/plip';
+
+const logger = new PlipLogger(config?: PlipConfig);
+```
 
 ### Log Level Methods
 
-#### `verbose(message: string, data?: any): void`
+#### `verbose(message: string, ...args: any[]): void`
 
 Logs verbose debugging information.
 
 ```typescript
-plip.verbose("Function entered", { params: { id: 123 } });
-plip.verbose("Processing item 5 of 10");
+logger.verbose("Function entered", { params: { id: 123 } });
+logger.verbose("Processing item", 5, "of", 10);
 ```
 
 **Output**: `🔍 [VERBOSE] Function entered { "params": { "id": 123 } }`
 
-#### `debug(message: string, data?: any): void`
+#### `debug(message: string, ...args: any[]): void`
 
 Logs debug information for development.
 
 ```typescript
-plip.debug("Cache miss for key", { key: "user:123" });
-plip.debug("Middleware stack initialized");
+logger.debug("Cache miss for key", { key: "user:123" });
+logger.debug("Variable state:", { count: 42, active: true });
 ```
 
-**Output**: `🔍 [DEBUG] Cache miss for key { "key": "user:123" }`
+**Output**: `� [DEBUG] Cache miss for key { "key": "user:123" }`
 
-#### `info(message: string, data?: any): void`
+#### `info(message: string, ...args: any[]): void`
 
 Logs general information messages.
 
 ```typescript
-plip.info("Server started on port 3000");
-plip.info("User authenticated", { userId: 123, role: "admin" });
+logger.info("Server started on port", 3000);
+logger.info("User authenticated", { userId: "123", role: "admin" });
 ```
 
 **Output**: `🫧 [INFO] Server started on port 3000`
 
-#### `success(message: string, data?: any): void`
+#### `success(message: string, ...args: any[]): void`
 
-Logs successful operations and completions.
-
-```typescript
-plip.success("File uploaded successfully", { filename: "document.pdf" });
-plip.success("Database migration completed");
-```
-
-**Output**: `🎉 [SUCCESS] File uploaded successfully { "filename": "document.pdf" }`
-
-#### `warn(message: string, data?: any): void`
-
-Logs warning conditions.
+Logs successful operations.
 
 ```typescript
-plip.warn("API rate limit approaching", { usage: "80%", limit: "100/min" });
-plip.warn("Deprecated method used", { method: "oldFunction()" });
+logger.success("Database connected successfully");
+logger.success("Email sent to", "user@example.com");
 ```
 
-**Output**: `⚠️ [WARN] API rate limit approaching { "usage": "80%", "limit": "100/min" }`
+**Output**: `✅ [SUCCESS] Database connected successfully`
 
-#### `error(message: string, data?: any): void`
+#### `warn(message: string, ...args: any[]): void`
 
-Logs error conditions and failures.
+Logs warning messages.
 
 ```typescript
-plip.error("Database connection failed", { host: "localhost", port: 5432 });
-plip.error("Authentication failed", { userId: 123, reason: "invalid_token" });
+logger.warn("API rate limit approaching", { remaining: 10 });
+logger.warn("Deprecated method used:", "oldFunction()");
 ```
 
-**Output**: `💥 [ERROR] Database connection failed { "host": "localhost", "port": 5432 }`
+**Output**: `⚠️ [WARN] API rate limit approaching { "remaining": 10 }`
 
-#### `trace(message: string, data?: any): void`
+#### `error(message: string, ...args: any[]): void`
 
-Logs execution trace information for detailed debugging.
+Logs error messages.
 
 ```typescript
-plip.trace("Function call trace", { function: "processUser", args: [123] });
-plip.trace("Execution path", { step: "validation", result: "passed" });
+logger.error("Failed to connect to database", error);
+logger.error("Validation failed", { field: "email", value: "invalid" });
 ```
 
-**Output**: `🛰️ [TRACE] Function call trace { "function": "processUser", "args": [123] }`
+**Output**: `💥 [ERROR] Failed to connect to database Error: Connection timeout`
+
+#### `trace(message: string, ...args: any[]): void`
+
+Logs trace information with stack traces.
+
+```typescript
+logger.trace("Execution path", { function: "processUser", line: 42 });
+logger.trace("Stack trace for debugging");
+```
+
+**Output**: `� [TRACE] Execution path { "function": "processUser", "line": 42 }`
 
 ## Factory Functions
 

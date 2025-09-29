@@ -48,6 +48,12 @@ console.log('[INFO] User login attempt', { userId: 123 });
 // Plip logging 🎉
 plip.info("User login attempt", { userId: 123 });
 // Output: 🫧 [INFO] User login attempt {"userId": 123}
+
+// Advanced features
+plip.withContext({ sessionId: 'abc-123' }).info("User action", { action: 'click' });
+plip.time('database-query');
+await db.users.find();
+plip.timeEnd('database-query'); // ⏱️ [TIMER] database-query: 45ms
 ```
 
 ### The Plip Difference:
@@ -55,8 +61,11 @@ plip.info("User login attempt", { userId: 123 });
 - **🌈 Visual Clarity**: Colors and emojis help you instantly identify log types
 - **🎯 Context-Aware**: Built-in context support with `withContext()`
 - **🚀 Zero Config**: Works beautifully out of the box
-- **🏗️ Environment Smart**: Automatically adapts to server vs client environments
+- **🏗️ Environment Smart**: Optimized SSR and CSR configurations
 - **📦 TypeScript First**: Full type safety and excellent IntelliSense
+- **🚛 Transport System**: Send logs to multiple destinations (console, files, remote services)
+- **⏱️ Performance Timing**: Built-in timing utilities with `time()` and `timeEnd()`
+- **🔧 Framework Agnostic**: Works with React, Next.js, Express, and more
 
 ## 🎨 Memorable Taglines
 

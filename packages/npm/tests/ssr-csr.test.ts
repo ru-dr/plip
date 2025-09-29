@@ -1,20 +1,21 @@
 // tests/ssr-csr.test.ts
 import { test, expect, describe } from "bun:test";
-import { 
-  createSSRLogger, 
-  createCSRLogger, 
-  ssrLogger, 
-  csrLogger, 
+import {
+  createSSRLogger,
+  createCSRLogger,
+  ssrLogger,
+  csrLogger,
   getAutoConfig,
   ssrConfig,
   csrConfig 
-} from '../src/lib/index.js';
-
-describe("SSR/CSR Logger Configurations", () => {
+} from '../src/core/index.js';describe("SSR/CSR Logger Configurations", () => {
   test("SSR config should have correct default settings", () => {
-    expect(ssrConfig.enableEmojis).toBe(true); // Now enabled by default
-    expect(ssrConfig.enableColors).toBe(true); // Now enabled by default
-    expect(ssrConfig.enableSyntaxHighlighting).toBe(true); // Now enabled by default
+    expect(ssrConfig.enableEmojis).toBe(false); // Disabled for clean server logs
+    // Colors enabled in development (!isProduction()), disabled in production
+    expect(typeof ssrConfig.enableColors).toBe('boolean'); // Value depends on environment
+    expect(ssrConfig.enableSyntaxHighlighting).toBe(true); // Keep for object formatting - useful for debugging
+    expect(ssrConfig.enableTimestamp).toBe(true); // Essential for server logs
+    expect(ssrConfig.includeRequestId).toBe(true); // For request correlation
   });
 
   test("CSR config should have correct default settings", () => {
@@ -52,7 +53,7 @@ describe("SSR/CSR Logger Configurations", () => {
     expect(typeof config.enableColors).toBe("boolean");
     expect(typeof config.enableSyntaxHighlighting).toBe("boolean");
   });
-  test("SSR logger should produce rich output with all features enabled", () => {
+  test("SSR logger should produce clean output suitable for servers", () => {
     // Mock console.log to capture output
     const logs: string[] = [];
     const originalLog = console.log;
@@ -66,7 +67,7 @@ describe("SSR/CSR Logger Configurations", () => {
     expect(logs.length).toBe(1);
     expect(logs[0]).toContain("[INFO]");
     expect(logs[0]).toContain("Test message");
-    expect(logs[0]).toContain("🫧"); // Should have emoji since it's enabled by default
+    expect(logs[0]).not.toContain("🫧"); // Should NOT have emoji for clean server logs
     
     // Restore console
     console.log = originalLog;
@@ -91,7 +92,7 @@ describe("SSR/CSR Logger Configurations", () => {
     console.log = originalLog;
   });
 
-  test("Both SSR and CSR should have all visual features enabled by default", () => {
+  test("SSR and CSR should have different default behaviors", () => {
     // Mock console.log to capture output
     const logs: string[] = [];
     const originalLog = console.log;
@@ -101,7 +102,7 @@ describe("SSR/CSR Logger Configurations", () => {
 
     const testObj = { userId: 123, name: "test" };
     
-    // Both SSR and CSR should now have rich formatting
+    // SSR optimized for servers, CSR optimized for browsers
     const ssrLogger = createSSRLogger();
     const csrLogger = createCSRLogger();
     
@@ -110,13 +111,15 @@ describe("SSR/CSR Logger Configurations", () => {
     
     expect(logs.length).toBe(2);
     
-    // Both should contain the object data and emojis
+    // Both should contain the object data
     expect(logs[0]).toContain("userId");
     expect(logs[1]).toContain("userId");
     
-    // Both SSR and CSR should have emojis now since all features are enabled
-    expect(logs[0]).toContain("🫧"); // SSR should have emoji
-    expect(logs[1]).toContain("🫧"); // CSR should have emoji    // Restore console
+    // SSR should NOT have emojis (clean server logs), CSR should have emojis (rich browser experience)
+    expect(logs[0]).not.toContain("🫧"); // SSR should NOT have emoji
+    expect(logs[1]).toContain("🫧"); // CSR should have emoji
+    
+    // Restore console
     console.log = originalLog;
   });
 });

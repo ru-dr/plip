@@ -2,9 +2,11 @@
 
 Learn the fundamentals of using Plip Logger in your applications.
 
-## Simple Logging
+## Quick Start
 
-Start with basic log messages:
+### Default Logger
+
+Start with the default logger instance:
 
 ```typescript
 import { plip } from '@ru-dr/plip';
@@ -15,19 +17,35 @@ plip.warn("API rate limit approaching");
 plip.error("Failed to send email");
 ```
 
+### Custom Logger
+
+Create a custom logger with your preferred configuration:
+
+```typescript
+import { createPlip } from '@ru-dr/plip';
+
+const logger = createPlip({
+  enableEmojis: true,
+  enableColors: true,
+  enabledLevels: ['info', 'warn', 'error']
+});
+
+logger.info("Custom logger created");
+```
+
 ## Log Levels
 
 Plip provides 7 log levels, each with distinct colors and emojis:
 
 ```typescript
 // Detailed debugging information
-plip.verbose("Processing request details...");
+logger.verbose("Processing request details...");
 
 // Debug information for development
-plip.debug("Variable value:", someVariable);
+logger.debug("Variable value:", someVariable);
 
 // General information messages
-plip.info("User logged in");
+logger.info("User logged in");
 
 // Success and completion messages
 plip.success("File uploaded successfully");
@@ -59,7 +77,139 @@ const user = {
   }
 };
 
-plip.info("User profile:", user);
+logger.info("User profile:", user);
+
+// Multiple arguments are handled gracefully
+logger.info("Processing user", user.id, "with role", user.roles[0]);
+```
+
+## Context Logging
+
+Add persistent context to your logs for better traceability:
+
+```typescript
+// Create a logger with context
+const userLogger = logger.withContext({
+  userId: "123",
+  sessionId: "abc-xyz-789",
+  requestId: "req_456"
+});
+
+// All subsequent logs will include this context
+userLogger.info("User action performed", { action: "login" });
+userLogger.warn("Rate limit warning", { attempts: 5 });
+
+// Clear context when needed
+const cleanLogger = userLogger.clearContext();
+cleanLogger.info("Context cleared");
+```
+
+## SSR vs CSR Usage
+
+### Server-Side Rendering (SSR)
+
+For server environments, use the SSR-optimized logger:
+
+```typescript
+import { createSSRLogger, ssrLogger } from '@ru-dr/plip';
+
+// Use pre-configured SSR logger
+ssrLogger.info("Server processing request");
+
+// Or create custom SSR logger
+const customSSRLogger = createSSRLogger({
+  enabledLevels: ['info', 'warn', 'error'],
+  enableTimestamp: true,
+  includeRequestId: true
+});
+
+customSSRLogger.info("Custom SSR logger initialized");
+```
+
+**SSR Features:**
+- Clean output without emojis (better for log files)
+- Timestamps for chronological tracking
+- Request ID correlation
+- Structured output support for log aggregation
+
+### Client-Side Rendering (CSR)
+
+For browser environments, use the CSR-optimized logger:
+
+```typescript
+import { createCSRLogger, csrLogger } from '@ru-dr/plip';
+
+// Use pre-configured CSR logger
+csrLogger.info("Client-side operation completed");
+
+// Or create custom CSR logger
+const customCSRLogger = createCSRLogger({
+  enableSyntaxHighlighting: true,
+  enableColors: true
+});
+
+customCSRLogger.info("Custom CSR logger initialized");
+```
+
+**CSR Features:**
+- Rich visual experience with emojis and colors
+- Syntax highlighting for better readability
+- Browser console optimization
+- Reduced clutter (no timestamps or request IDs)
+
+## Performance Timing
+
+Track execution time of operations:
+
+```typescript
+// Start a timer
+logger.time('database-query');
+
+// Perform your operation
+const users = await db.users.findMany();
+
+// End the timer and log the duration
+logger.timeEnd('database-query');
+// Output: ⏱️ [TIMER] database-query: 142ms
+
+// Measure function execution
+const result = await logger.measure('api-call', async () => {
+  return await fetch('/api/data').then(r => r.json());
+});
+// Automatically logs: ⏱️ [TIMER] api-call: 89ms
+```
+
+## Transport System
+
+Control where your logs go with transports:
+
+```typescript
+import { FileTransport, RemoteTransport } from '@ru-dr/plip';
+
+// Add file logging for server environments
+const fileTransport = new FileTransport({
+  name: 'file',
+  filePath: '/var/log/app.log',
+  level: 'warn' // Only log warnings and errors to file
+});
+
+logger.addTransport(fileTransport);
+
+// Add remote logging for error tracking
+const remoteTransport = new RemoteTransport({
+  name: 'remote',
+  endpoint: 'https://logs.example.com/api/logs',
+  level: 'error', // Only send errors to remote service
+  apiKey: 'your-api-key'
+});
+
+logger.addTransport(remoteTransport);
+
+// Now logs go to console, file, and remote service based on levels
+logger.info("This goes to console only");
+logger.warn("This goes to console and file");
+logger.error("This goes to console, file, and remote service");
+```
 
 // Arrays are also beautifully formatted
 const tasks = [
