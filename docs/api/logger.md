@@ -67,7 +67,7 @@ import { FileTransport } from '@ru-dr/plip';
 
 const fileTransport = new FileTransport({
   name: 'file',
-  filePath: '/var/log/app.log'
+  filename: '/var/log/app.log'
 });
 
 logger.addTransport(fileTransport);

@@ -5,10 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.2.0] - 2025-09-29
 
 ### Added
-- Initial versioning setup with semantic versioning scripts
+- 🚀 RemoteTransport for logging to remote servers with batching and error handling
+- 🔄 Transport system with Console, File, Browser, and Remote transports
+- ⚙️ Enhanced logging configuration types and logger factory
+
+### Tests
+- ✅ Comprehensive tests for formatters, transports, and performance utilities
+
+### Changed
+- 🛠️ Organized code structure and improved documentation
 
 ## [1.1.0] - 2025-06-02
 
@@ -29,6 +37,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 🐳 Docker setup and best practices documentation
 - 🔧 CI/CD integration examples for GitHub Actions, Jenkins, and GitLab
 - 🏗️ Framework integration guides and examples
+
+## [1.1.1] - 2025-06-03
+
+### Added
+- **Monorepo Support**: Plip Logger now works seamlessly in monorepo setups.
+- **Multi-Language Folder Structure Support**: Added support for structured logging setups in languages beyond JavaScript (early-stage support).
 
 ## [1.0.0] - 2025-06-01
 
@@ -55,6 +69,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Framework integration examples (Express.js)
 - Error handling patterns
 
-[Unreleased]: https://github.com/ru-dr/plip/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/ru-dr/plip/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/ru-dr/plip/compare/v1.1.1...v1.2.0
+[1.1.1]: https://github.com/ru-dr/plip/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/ru-dr/plip/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/ru-dr/plip/releases/tag/v1.0.0

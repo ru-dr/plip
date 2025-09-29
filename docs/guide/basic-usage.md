@@ -189,8 +189,8 @@ import { FileTransport, RemoteTransport } from '@ru-dr/plip';
 // Add file logging for server environments
 const fileTransport = new FileTransport({
   name: 'file',
-  filePath: '/var/log/app.log',
-  level: 'warn' // Only log warnings and errors to file
+  filename: '/var/log/app.log',
+  level: ['warn', 'error'] // Only log warnings and errors to file
 });
 
 logger.addTransport(fileTransport);
@@ -198,9 +198,11 @@ logger.addTransport(fileTransport);
 // Add remote logging for error tracking
 const remoteTransport = new RemoteTransport({
   name: 'remote',
-  endpoint: 'https://logs.example.com/api/logs',
-  level: 'error', // Only send errors to remote service
-  apiKey: 'your-api-key'
+  url: 'https://logs.example.com/api/logs',
+  level: ['error'], // Only send errors to remote service
+  batchSize: 10,
+  flushInterval: 5000,
+  headers: { 'Authorization': 'Bearer your-api-key' }
 });
 
 logger.addTransport(remoteTransport);
