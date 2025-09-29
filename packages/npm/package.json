@@ -1,6 +1,6 @@
 {
   "name": "@ru-dr/plip",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "A delightful, colorful logging experience for modern applications",
   "main": "dist/index.js",
   "module": "dist/index.js",
@@ -23,19 +23,16 @@
     "test:watch": "bun test --watch",
     "dev": "bun run src/index.ts",
     "prepublishOnly": "bun run build && bun test",
-    
     "version:patch": "npm version patch --no-git-tag-version",
     "version:minor": "npm version minor --no-git-tag-version",
     "version:major": "npm version major --no-git-tag-version",
     "version:prerelease": "npm version prerelease --no-git-tag-version",
-    
     "release": "bun run build && bun test && npm publish",
     "release:beta": "bun run build && bun test && npm publish --tag beta",
     "release:github": "git push origin --tags && gh release create",
     "release:full": "bun run build && bun test && npm publish && bun run release:github",
-    
     "docs:dev": "vitepress dev ../../docs",
-    "docs:build": "vitepress build ../../docs", 
+    "docs:build": "vitepress build ../../docs",
     "docs:preview": "vitepress preview ../../docs",
     "docs:build:vercel": "bun install && vitepress build ../../docs"
   },
