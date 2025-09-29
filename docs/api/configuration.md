@@ -588,5 +588,5 @@ logger.clearTransports();
 
 - Learn about [Types](/api/types) definitions
 - Explore the [Logger API](/api/logger) 
-- Check out [Transport System](/guide/transports) guide
+- Check out [Transport System](/api/transports) guide
 - See [SSR/CSR Examples](/examples/ssr-csr-quickstart)
