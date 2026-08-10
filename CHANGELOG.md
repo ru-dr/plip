@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.0.0] - 2026-08-10
 
 ### Removed
 - **BREAKING**: Emoji support removed entirely. `enableEmojis`, `logger.withEmojis()`,
@@ -146,7 +146,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Framework integration examples (Express.js)
 - Error handling patterns
 
-[Unreleased]: https://github.com/ru-dr/plip/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/ru-dr/plip/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/ru-dr/plip/compare/v1.2.0...v2.0.0
 [1.2.0]: https://github.com/ru-dr/plip/compare/v1.1.1...v1.2.0
 [1.1.1]: https://github.com/ru-dr/plip/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/ru-dr/plip/compare/v1.0.0...v1.1.0

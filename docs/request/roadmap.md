@@ -4,7 +4,7 @@ This page outlines the current features, planned enhancements, and version histo
 
 ## Current Version
 
-**Plip v1.2.0** (Released September 2025)
+**Plip v2.0.0** (Released August 2026)
 
 ## Feature Overview
 
@@ -55,7 +55,20 @@ This page outlines the current features, planned enhancements, and version histo
 
 ## Version History
 
-### v1.2.0 (Current) - September 2025
+### v2.0.0 (Current) - August 2026
+
+Breaking: emoji support removed, `ConsoleTransportConfig.useSyntaxHighlighting`,
+`colors.reset` and `colors.strikethrough` removed, duplicate `src/lib/` deleted.
+
+- Severity threshold via `minLevel`, plus `LOG_LEVEL_SEVERITY` / `levelsAtOrAbove()`
+- `flush()` on the logger and as an optional transport hook
+- `onError` for transport failures, which were previously swallowed
+- `enableTimestamp` and `enableStructuredOutput` implemented
+- Zero runtime dependencies and a dual ESM/CommonJS build
+- ESLint flat config and CI
+- Correctness fixes across the console, file, remote and browser transports
+
+### v1.2.0 - September 2025
 
 - Transport system with Console, File, Browser, and Remote transports
 - RemoteTransport with batching and error handling
