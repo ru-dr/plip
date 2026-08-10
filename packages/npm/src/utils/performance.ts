@@ -1,5 +1,3 @@
-// src/utils/performance.ts
-
 export interface PerformanceTimer {
   label: string;
   start(): void;
@@ -31,7 +29,6 @@ export class Timer implements PerformanceTimer {
   }
 
   private getHighResTime(): number {
-    // Use performance.now() if available, otherwise fall back to Date.now()
     if (typeof performance !== 'undefined' && performance.now) {
       return performance.now();
     } else {
@@ -46,7 +43,6 @@ export class MemoryUsage {
     total: number;
     percentage: number;
   } | null {
-    // Node.js environment
     if (typeof process !== 'undefined' && process.memoryUsage) {
       const usage = process.memoryUsage();
       return {
@@ -56,7 +52,6 @@ export class MemoryUsage {
       };
     }
 
-    // Browser environment
     if (typeof performance !== 'undefined' && 'memory' in performance) {
       const memory = (performance as any).memory;
       return {

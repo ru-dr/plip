@@ -1,6 +1,4 @@
-// src/types/logger.ts
-
-import type { LogLevel, LogEntry, PlipConfig } from './config.js';
+import type { LogLevel, PlipConfig } from './config.js';
 import type { Transport } from './transport.js';
 
 export interface Logger {
@@ -11,23 +9,21 @@ export interface Logger {
   debug(...args: any[]): void;
   trace(...args: any[]): void;
   verbose(...args: any[]): void;
-  
-  // Configuration methods
+
   configure(config: Partial<PlipConfig>): Logger;
   silent(): Logger;
-  withEmojis(enabled?: boolean): Logger;
   withColors(enabled?: boolean): Logger;
   withSyntaxHighlighting(enabled?: boolean): Logger;
   withContext(context: Record<string, any>): Logger;
   levels(...levels: LogLevel[]): Logger;
-  
-  // Transport methods
+  minLevel(level: LogLevel): Logger;
+
   addTransport(transport: Transport): Logger;
   removeTransport(name: string): Logger;
   clearTransports(): Logger;
   getTransports(): Transport[];
-  
-  // Utility methods
+  flush(): Promise<void>;
+
   startTimer(label?: string): LogTimer;
   child(context: Record<string, any>): Logger;
 }

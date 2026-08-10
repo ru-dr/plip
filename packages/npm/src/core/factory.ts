@@ -1,54 +1,42 @@
-// src/core/factory.ts
-
 import type { LoggerFactory, Logger } from '../types/logger.js';
-import type { PlipConfig } from '../types/config.js';
+import type { PlipConfig, ResolvedPlipConfig } from '../types/config.js';
 import { PlipLogger } from './logger.js';
 import { ConsoleTransport } from '../transports/console.js';
-import { 
-  defaultConfig, 
+import {
+  defaultConfig,
   defaultTheme,
-  createSSRConfig, 
-  createCSRConfig 
+  createSSRConfig,
+  createCSRConfig
 } from './config.js';
-import { supportsColor, supportsEmoji, isDevelopment } from '../utils/env.js';
+import { supportsColor } from '../utils/env.js';
 
 export class PlipLoggerFactory implements LoggerFactory {
   create(config: Partial<PlipConfig> = {}): Logger {
-    const isDev = isDevelopment();
-    
-    const finalConfig: Required<PlipConfig> = {
+    const finalConfig: ResolvedPlipConfig = {
       ...defaultConfig,
       silent: config.silent ?? defaultConfig.silent,
-      enableEmojis: config.enableEmojis ?? (defaultConfig.enableEmojis && supportsEmoji()),
       enableColors: config.enableColors ?? (defaultConfig.enableColors && supportsColor()),
       enableSyntaxHighlighting: config.enableSyntaxHighlighting ?? defaultConfig.enableSyntaxHighlighting,
       theme: config.theme ?? defaultConfig.theme,
       enabledLevels: config.enabledLevels ?? defaultConfig.enabledLevels,
-      devOnly: config.devOnly ?? isDev,
+      devOnly: config.devOnly ?? defaultConfig.devOnly,
       enableTimestamp: config.enableTimestamp ?? defaultConfig.enableTimestamp,
       enableStructuredOutput: config.enableStructuredOutput ?? defaultConfig.enableStructuredOutput,
       includeRequestId: config.includeRequestId ?? defaultConfig.includeRequestId,
       includeContext: config.includeContext ?? defaultConfig.includeContext,
+      minLevel: config.minLevel ?? defaultConfig.minLevel,
+      onError: config.onError ?? defaultConfig.onError,
     };
 
     const theme = {
-      emojis: { ...defaultTheme.emojis, ...finalConfig.theme.emojis },
       colors: { ...defaultTheme.colors, ...finalConfig.theme.colors },
       dimColors: { ...defaultTheme.dimColors, ...finalConfig.theme.dimColors },
     };
 
-    // Create default console transport
-    const consoleTransport = new ConsoleTransport(
-      {
-        name: 'console',
-        level: finalConfig.enabledLevels,
-        silent: finalConfig.silent,
-        useColors: finalConfig.enableColors,
-        useEmojis: finalConfig.enableEmojis,
-        useSyntaxHighlighting: finalConfig.enableSyntaxHighlighting,
-      },
-      theme
-    );
+    // Default console transport. Deliberately not given `level`/`silent`: the
+    // logger already gates those, and a snapshot here would desync from
+    // levels()/silent() on derived loggers.
+    const consoleTransport = new ConsoleTransport({ name: 'console' });
 
     return new PlipLogger(finalConfig, theme, {}, [consoleTransport]);
   }
@@ -64,5 +52,4 @@ export class PlipLoggerFactory implements LoggerFactory {
   }
 }
 
-// Export singleton factory instance
 export const loggerFactory = new PlipLoggerFactory();

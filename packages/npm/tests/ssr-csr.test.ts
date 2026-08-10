@@ -10,7 +10,6 @@ import {
   csrConfig 
 } from '../src/core/index.js';describe("SSR/CSR Logger Configurations", () => {
   test("SSR config should have correct default settings", () => {
-    expect(ssrConfig.enableEmojis).toBe(false); // Disabled for clean server logs
     // Colors enabled in development (!isProduction()), disabled in production
     expect(typeof ssrConfig.enableColors).toBe('boolean'); // Value depends on environment
     expect(ssrConfig.enableSyntaxHighlighting).toBe(true); // Keep for object formatting - useful for debugging
@@ -19,7 +18,6 @@ import {
   });
 
   test("CSR config should have correct default settings", () => {
-    expect(csrConfig.enableEmojis).toBe(true);
     expect(csrConfig.enableColors).toBe(true);
     expect(csrConfig.enableSyntaxHighlighting).toBe(true);
   });
@@ -49,7 +47,6 @@ import {
   test("getAutoConfig should return config", () => {
     const config = getAutoConfig();
     expect(config).toBeDefined();
-    expect(typeof config.enableEmojis).toBe("boolean");
     expect(typeof config.enableColors).toBe("boolean");
     expect(typeof config.enableSyntaxHighlighting).toBe("boolean");
   });
@@ -67,7 +64,6 @@ import {
     expect(logs.length).toBe(1);
     expect(logs[0]).toContain("[INFO]");
     expect(logs[0]).toContain("Test message");
-    expect(logs[0]).not.toContain("🫧"); // Should NOT have emoji for clean server logs
     
     // Restore console
     console.log = originalLog;
@@ -86,7 +82,6 @@ import {
     expect(logs.length).toBe(1);
     expect(logs[0]).toContain("[INFO]");
     expect(logs[0]).toContain("Test message");
-    expect(logs[0]).toContain("🫧"); // Should have emoji
     
     // Restore console
     console.log = originalLog;
@@ -114,10 +109,6 @@ import {
     // Both should contain the object data
     expect(logs[0]).toContain("userId");
     expect(logs[1]).toContain("userId");
-    
-    // SSR should NOT have emojis (clean server logs), CSR should have emojis (rich browser experience)
-    expect(logs[0]).not.toContain("🫧"); // SSR should NOT have emoji
-    expect(logs[1]).toContain("🫧"); // CSR should have emoji
     
     // Restore console
     console.log = originalLog;

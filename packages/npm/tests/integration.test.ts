@@ -2,10 +2,8 @@
 
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import { loggerFactory } from '../src/core/factory.js';
-import { ConsoleTransport, FileTransport, BrowserTransport } from '../src/transports/index.js';
-import { JsonFormatter, TextFormatter } from '../src/formatters/index.js';
+import { ConsoleTransport, BrowserTransport } from '../src/transports/index.js';
 import { createReactLogger, NextJSAdapter } from '../src/adapters/index.js';
-import type { Logger } from '../src/types/logger.js';
 
 describe('Integration Tests', () => {
   let originalConsoleLog: typeof console.log;
@@ -41,7 +39,6 @@ describe('Integration Tests', () => {
       expect(logs).toHaveLength(1);
       expect(logs[0]).toContain('[INFO]');
       expect(logs[0]).toContain('Server message');
-      expect(logs[0]).not.toContain('🫧'); // No emojis for SSR
     });
 
     test('should create CSR logger with appropriate defaults', () => {
@@ -52,7 +49,6 @@ describe('Integration Tests', () => {
       expect(logs).toHaveLength(1);
       expect(logs[0]).toContain('[INFO]');
       expect(logs[0]).toContain('Client message');
-      expect(logs[0]).toContain('🫧'); // Emojis for CSR
     });
   });
 
@@ -198,7 +194,6 @@ describe('Integration Tests', () => {
     test('should support fluent configuration API', () => {
       const logger = loggerFactory.create()
         .withColors(false)
-        .withEmojis(false)
         .levels('error', 'warn')
         .withContext({ module: 'test' });
       
@@ -207,7 +202,6 @@ describe('Integration Tests', () => {
       
       expect(logs).toHaveLength(1);
       expect(logs[0]).toContain('This should appear');
-      expect(logs[0]).not.toContain('🫧'); // No emojis
       expect(logs[0]).toContain('module'); // Context included
     });
   });

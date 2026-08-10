@@ -1,12 +1,12 @@
-// src/types/transport.ts
-
-import type { LogEntry, FormattedLogEntry, LogLevel } from './config.js';
+import type { FormattedLogEntry, LogErrorHandler, LogLevel } from './config.js';
 
 export interface Transport {
   name: string;
   log(entry: FormattedLogEntry): void | Promise<void>;
   shouldLog?(level: LogLevel): boolean;
-  configure?(config: any): void;
+  configure?(config: Partial<TransportConfig>): void;
+  /** Drains buffered entries. Called by `Logger.flush()`. */
+  flush?(): void | Promise<void>;
   close?(): void | Promise<void>;
 }
 
@@ -14,6 +14,8 @@ export interface TransportConfig {
   name: string;
   level?: LogLevel[];
   silent?: boolean;
+  /** Receives delivery failures. Defaults to logging them with console.error. */
+  onError?: LogErrorHandler;
 }
 
 export interface FileTransportConfig extends TransportConfig {
@@ -41,7 +43,6 @@ export interface BrowserTransportConfig extends TransportConfig {
 }
 
 export interface ConsoleTransportConfig extends TransportConfig {
+  /** Set to false to strip ANSI colors before printing. Defaults to true. */
   useColors?: boolean;
-  useEmojis?: boolean;
-  useSyntaxHighlighting?: boolean;
 }

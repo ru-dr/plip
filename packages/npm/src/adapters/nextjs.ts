@@ -1,8 +1,5 @@
-// src/adapters/nextjs.ts
-
 import type { Logger } from '../types/logger.js';
 
-// Generic request interface that works with Next.js or other frameworks
 export interface RequestLike {
   method: string;
   url: string;
@@ -39,10 +36,8 @@ export class NextJSAdapter {
     if (headers instanceof Map) {
       return headers.get(name) || null;
     } else if (typeof headers === 'object' && 'get' in headers) {
-      // Headers interface
       return (headers as Headers).get(name);
     } else {
-      // Plain object
       return (headers as Record<string, string>)[name] || null;
     }
   }
@@ -51,17 +46,14 @@ export class NextJSAdapter {
     if (headers instanceof Map) {
       headers.forEach(callback);
     } else if (typeof headers === 'object' && 'forEach' in headers) {
-      // Headers interface
       (headers as Headers).forEach(callback);
     } else {
-      // Plain object
       Object.entries(headers as Record<string, string>).forEach(([key, value]) => {
         callback(value, key);
       });
     }
   }
 
-  // Create a logger with Next.js request context
   withRequest(request: RequestLike): Logger {
     if (!this.options.includeRequestInfo) {
       return this.logger;
@@ -84,7 +76,7 @@ export class NextJSAdapter {
     if (this.options.sanitizeHeaders) {
       const sanitizedHeaders: Record<string, string> = {};
       const sensitiveHeaders = ['authorization', 'cookie', 'x-api-key', 'x-auth-token'];
-      
+
       this.forEachHeader(request.headers, (value: string, key: string) => {
         if (sensitiveHeaders.includes(key.toLowerCase())) {
           sanitizedHeaders[key] = '[REDACTED]';
@@ -92,20 +84,18 @@ export class NextJSAdapter {
           sanitizedHeaders[key] = value;
         }
       });
-      
+
       context.headers = sanitizedHeaders;
     }
 
-    // Generate a request ID for correlation
-    const requestId = this.getHeader(request.headers, 'x-request-id') || 
+    const requestId = this.getHeader(request.headers, 'x-request-id') ||
                      `req_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-    
+
     context.requestId = requestId;
 
     return this.logger.withContext(context);
   }
 
-  // Middleware function for API routes
   middleware() {
     return (request: RequestLike) => {
       const logger = this.withRequest(request);
@@ -136,7 +126,6 @@ export class NextJSAdapter {
     };
   }
 
-  // API route wrapper
   withAPIRoute<T extends (...args: any[]) => any>(handler: T): T {
     return (async (...args: any[]) => {
       const [request] = args;
@@ -145,12 +134,12 @@ export class NextJSAdapter {
 
       try {
         logger.info(`API Route: ${request.method} ${request.nextUrl?.pathname}`);
-        
+
         const result = await handler(...args);
-        
+
         const duration = performance.now() - startTime;
         logger.success(`API Route completed in ${duration.toFixed(2)}ms`);
-        
+
         return result;
       } catch (error) {
         const duration = performance.now() - startTime;
