@@ -1,69 +1,67 @@
-# 🗺️ Roadmap & Features
+# Roadmap & Features
 
-This page outlines the current features, planned enhancements, version history, and language support roadmap for Plip Logger.
+This page outlines the current features, planned enhancements, and version history for Plip Logger.
 
-## 📌 Current Version
+## Current Version
 
-**Plip v1.1.0** (Released June 2025)
+**Plip v1.2.0** (Released September 2025)
 
-## ⭐ Feature Overview
+## Feature Overview
 
-### ✨ Core Features
+### Core Features
 
-- Colorful logger with emoji support
+- Colorful logger with syntax highlighting
 - Seven distinct log levels (info, success, warn, error, debug, trace, verbose)
-- Smart terminal color and emoji detection
+- Smart terminal color detection
 - Fluent API with method chaining
 - Full TypeScript support
 - Environment-aware logging (Node.js, Bun, Deno, Browser; dev/prod modes)
-- Customizable themes (colors, emojis, format)
+- Customizable themes (per-level colors)
+- Transport system (console, file, browser, remote)
+- Performance timers via `startTimer()`
+- Severity threshold via `minLevel`, transport error reporting via `onError`
+- `flush()` to drain all transports
 - Zero-configuration setup
 
-### 🛠️ Technical Capabilities
+### Technical Capabilities
 
-- Flexible Configuration System (global, per-instance, JSON/programmatic)
-- Modular Architecture (core functions, internal modules, optional imports)
-- Extensibility (formatter hooks, middleware, console routing)
-- Testing & Debugging Support (mocking, snapshotting, debug toggles)
+- Flexible Configuration System (programmatic, global or per-instance)
+- Modular Architecture (core logger, transports, formatters, utilities)
+- Extensibility (custom transports, custom themes)
 - Broad compatibility (multiple package managers, SSR/CSR)
+- Zero runtime dependencies, tree-shakeable (`"sideEffects": false`)
+- Dual ESM + CommonJS build - both `import` and `require` are supported
+- ESLint 9 flat config with `bun run lint` / `bun run lint:fix`
+- Continuous integration (`.github/workflows/ci.yml`): typecheck, lint, tests with
+  coverage, build, entrypoint smoke test and docs build
 
-## 🌍 Language Support
+## Planned Features
 
-| Language | Status | Expected Release | Package Manager |
-|----------|--------|-----------------|-----------------|
-| JavaScript/TypeScript | ✅ Available | Current | npm, yarn, pnpm, bun |
-| Python | 🚧 In Development | Q4 2025 | pip |
-| Java | 📋 Planned | 2026 | Maven, Gradle |
-| PHP | 📋 Planned | 2026 | Composer |
-| Go | 🔍 Exploring | TBD | Go modules |
-| Rust | 🔍 Exploring | TBD | Cargo |
-| C# | 🔍 Exploring | TBD | NuGet |
-| Ruby | 🔍 Exploring | TBD | RubyGems |
-
-> 💡 **Want your language prioritized?** [Vote or request here!](https://github.com/ru-dr/plip/discussions)
-
-## 🗓️ Planned Features
-
-### ➡️ Next Release (v1.2.0) - Q3 2025
+### Next Release
 
 - Built-in metrics collection
 - React Native support
 - Rotating file transport
-- Plugin system for custom transports
 
-### 🔮 Future Releases
+### Future Releases
 
 - Encrypted logging
 - Query language for logs
 - Interactive log visualization dashboard
 - Real-time log streaming
 - OpenTelemetry integration
-- Log grouping and timers
+- Log grouping
 - Web-based inspector
 
-## 📜 Version History
+## Version History
 
-### v1.1.0 (Current) - June 2025
+### v1.2.0 (Current) - September 2025
+
+- Transport system with Console, File, Browser, and Remote transports
+- RemoteTransport with batching and error handling
+- Enhanced logging configuration types and logger factory
+
+### v1.1.0 - June 2025
 
 - Added enterprise logger patterns
 - Improved performance for high-volume environments
@@ -75,14 +73,13 @@ This page outlines the current features, planned enhancements, version history, 
 
 - Initial stable release with core functionality
 - Seven log levels (info, success, warn, error, debug, trace, verbose)
-- Terminal color and emoji support
+- Terminal color support
 - Comprehensive documentation
 
-## 🤝 Contribution Areas
+## Contribution Areas
 
 We welcome community contributions in these areas:
 
-- Language ports (help bring Plip to more languages)
 - Framework integrations
 - Performance improvements
 - Documentation and examples
@@ -90,18 +87,15 @@ We welcome community contributions in these areas:
 
 See our [Contributing Guide](../request/contributing.md) to get involved.
 
-## ✔️ Compatibility
+## Compatibility
 
 Plip aims for broad compatibility across modern JavaScript environments.
 
-| Platform / Technology | Version / Details          | Supported |
-|-----------------------|----------------------------|-----------|
-| 🟢 Node.js            | 16.x and above             | ✅        |
-| 🐰 Bun                | 1.x and above              | ✅        |
-| 🦕 Deno               | 1.x and above              | ✅        |
-| 🔷 TypeScript         | 4.5+ and above             | ✅        |
-| 🌐 Modern Browsers    | Latest ECMAScript features | ✅        |
-| 🖥️ SSR Frameworks     | Supported                  | ✅        |
-| 📱 CSR Frameworks     | Supported                  | ✅        |
+| Platform / Technology | Version / Details                        |
+|-----------------------|------------------------------------------|
+| Node.js               | `engines: >=16`                          |
+| TypeScript            | 5.x (peer dependency `^5`)               |
+| Bun                   | Used for the test suite and build        |
+| Deno, browsers        | Detected at runtime by `getRuntimeEnvironment()` |
 
 For more detailed compatibility information, see our [Compatibility Guide](../guide/compatibility.md).

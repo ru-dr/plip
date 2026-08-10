@@ -10,7 +10,7 @@ The default `plip` logger comes pre-configured with sensible defaults:
 import { plip } from '@ru-dr/plip';
 
 // Use immediately - no configuration needed!
-plip.info("Ready to go! 🚀");
+plip.info("Ready to go!");
 ```
 
 ## Creating Custom Loggers
@@ -21,7 +21,6 @@ For more control, create your own logger instance:
 import { createPlip } from '@ru-dr/plip';
 
 const customLogger = createPlip({
-  enableEmojis: true,
   enableColors: true,
   enabledLevels: ['info', 'warn', 'error']
 });
@@ -34,14 +33,17 @@ const customLogger = createPlip({
 ```typescript
 interface PlipConfig {
   silent?: boolean;                    // Disable all logging output
-  enableEmojis?: boolean;              // Enable/disable emoji prefixes
   enableColors?: boolean;              // Enable/disable color output
   enableSyntaxHighlighting?: boolean;  // Enable/disable object syntax highlighting
   theme?: Partial<PlipTheme>;          // Custom theme configuration
-  enabledLevels?: LogLevel[];          // Array of enabled log levels
+  enabledLevels?: LogLevel[];          // Explicit allowlist of enabled log levels
+  minLevel?: LogLevel;                 // Severity threshold; levels below it are dropped
   devOnly?: boolean;                   // Only log in development environment
+  onError?: LogErrorHandler;           // Called when a transport throws or rejects
 }
 ```
+
+`enabledLevels` and `minLevel` are independent filters, and intersect when both are set. See [Log Levels](/guide/log-levels) for the difference.
 
 ### Available Log Levels
 
@@ -58,7 +60,6 @@ Optimized for production environments:
 ```typescript
 const prodLogger = createPlip({
   silent: false,              // Allow logging but be selective
-  enableEmojis: false,        // Cleaner for log aggregation
   enableColors: false,        // Better for file logging
   enableSyntaxHighlighting: false, // Simpler output
   enabledLevels: ['info', 'warn', 'error']
@@ -71,7 +72,6 @@ Enhanced for development experience:
 
 ```typescript
 const devLogger = createPlip({
-  enableEmojis: true,         // Visual context
   enableColors: true,         // Beautiful output
   enableSyntaxHighlighting: true, // Rich object formatting
   enabledLevels: ['verbose', 'debug', 'info', 'success', 'warn', 'error', 'trace']
@@ -84,7 +84,6 @@ Only essential messages:
 
 ```typescript
 const minimalLogger = createPlip({
-  enableEmojis: false,
   enableColors: false,
   enableSyntaxHighlighting: false,
   enabledLevels: ['error']
@@ -93,29 +92,59 @@ const minimalLogger = createPlip({
 
 ### Debug-Only Logger
 
-For troubleshooting:
+For troubleshooting. This is a case only the allowlist can express, since it excludes the *more* severe levels:
 
 ```typescript
 const debugLogger = createPlip({
-  enableEmojis: true,
   enableColors: true,
   enableSyntaxHighlighting: true,
   enabledLevels: ['verbose', 'debug', 'trace']
 });
 ```
 
+### Threshold Logger
+
+For the conventional "warn and above" behaviour, use `minLevel` instead of listing levels:
+
+```typescript
+const thresholdLogger = createPlip({
+  minLevel: 'warn' // Keeps warn and error
+});
+```
+
+There is also a chainable form, which returns a new logger:
+
+```typescript
+const quieter = thresholdLogger.minLevel('error');
+```
+
+### Reporting Transport Failures
+
+`onError` receives any error a transport throws or rejects with. Without it, failures are reported with `console.error` — they are never silently dropped:
+
+```typescript
+const logger = createPlip({
+  onError: (error, transportName) => {
+    metrics.increment('log_transport_failure', { transport: transportName });
+  }
+});
+```
+
+Individual transports accept their own `onError` too, via `TransportConfig`.
+
 ## Runtime Configuration
 
-Modify logger behavior after creation:
+`configure()` returns a **new** logger with the merged configuration - the original instance is left untouched:
 
 ```typescript
 import { plip } from '@ru-dr/plip';
 
-// Enable/disable features dynamically
-plip.configure({
-  enableEmojis: false,
+// Derive a reconfigured logger
+const colorfulPlip = plip.configure({
   enableColors: true
 });
+
+colorfulPlip.info("Colors enabled");
 ```
 
 ## Environment-Based Configuration
@@ -127,7 +156,7 @@ const isProd = process.env.NODE_ENV === 'production';
 const isTest = process.env.NODE_ENV === 'test';
 
 const logger = createPlip({
-  enableEmojis: !isProd,  enableColors: !isTest,
+  enableColors: !isTest,
   enabledLevels: isProd 
     ? ['info', 'warn', 'error']
     : ['verbose', 'debug', 'info', 'success', 'warn', 'error', 'trace']
@@ -141,21 +170,18 @@ Create specialized loggers for different parts of your application:
 ```typescript
 // Database logger
 const dbLogger = createPlip({
-  enableEmojis: true,
   enableColors: true,
   enabledLevels: ['debug', 'info', 'error']
 });
 
 // API logger
 const apiLogger = createPlip({
-  enableEmojis: true,
   enableColors: true,
   enabledLevels: ['info', 'warn', 'error']
 });
 
 // Security logger
 const securityLogger = createPlip({
-  enableEmojis: false,
   enableColors: false,
   enabledLevels: ['warn', 'error']
 });
@@ -167,20 +193,15 @@ const securityLogger = createPlip({
 Always consider your deployment environment when configuring loggers.
 
 ### 2. Level Management
-Use appropriate log levels for different environments:
-- **Development**: All levels enabled
-- **Staging**: Info and above
-- **Production**: Warn and above
+Use appropriate log levels for different environments. "And above" selections are what `minLevel` is for:
+- **Development**: All levels enabled (`minLevel: 'trace'`, or simply leave it unset)
+- **Staging**: `minLevel: 'info'`
+- **Production**: `minLevel: 'warn'`
 
 ### 3. Color Considerations
 - Enable colors for local development
 - Disable colors for file logging and CI/CD
 - Let Plip auto-detect in most cases
-
-### 4. Emoji Usage
-- Great for development and local debugging
-- Consider disabling for production logs
-- Ensure your logging infrastructure supports Unicode
 
 ## Advanced Configuration
 
@@ -189,13 +210,11 @@ Use appropriate log levels for different environments:
 ```typescript
 const getLoggerConfig = (): PlipConfig => {
   const config: PlipConfig = {
-    enableEmojis: true,
     enableColors: true,
     enabledLevels: ['info', 'warn', 'error']
   };
   // Modify based on environment
   if (process.env.NODE_ENV === 'production') {
-    config.enableEmojis = false;
     config.enabledLevels = ['warn', 'error'];
   }
 
@@ -224,7 +243,6 @@ const validateConfig = (config: PlipConfig): PlipConfig => {
 };
 
 const logger = createPlip(validateConfig({
-  enableEmojis: true,
   enableColors: true,
   enabledLevels: []
 }));

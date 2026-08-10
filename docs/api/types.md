@@ -4,27 +4,40 @@ Complete TypeScript type definitions for Plip Logger.
 
 ## Core Types
 
-### `PlipLogger`
+### `Logger`
 
-The main logger interface providing all logging methods.
+The main logger interface providing all logging methods. `PlipLogger` is the class that implements it.
 
 ```typescript
-interface PlipLogger {
+interface Logger {
   // Log level methods
-  verbose(message: string, data?: any): PlipLogger;
-  debug(message: string, data?: any): PlipLogger;
-  info(message: string, data?: any): PlipLogger;
-  success(message: string, data?: any): PlipLogger;
-  warn(message: string, data?: any): PlipLogger;
-  error(message: string, data?: any): PlipLogger;
-  fatal(message: string, data?: any): PlipLogger;
-  
-  // Configuration access
-  readonly config: PlipConfig;
-  
-  // Utility methods
-  configure(config: Partial<PlipConfig>): PlipLogger;
-  isLevelEnabled(level: LogLevel): boolean;
+  verbose(...args: any[]): void;
+  debug(...args: any[]): void;
+  info(...args: any[]): void;
+  success(...args: any[]): void;
+  warn(...args: any[]): void;
+  error(...args: any[]): void;
+  trace(...args: any[]): void;
+
+  // Configuration methods (each returns a new logger)
+  configure(config: Partial<PlipConfig>): Logger;
+  silent(): Logger;
+  withColors(enabled?: boolean): Logger;
+  withSyntaxHighlighting(enabled?: boolean): Logger;
+  withContext(context: Record<string, any>): Logger;
+  levels(...levels: LogLevel[]): Logger;
+  minLevel(level: LogLevel): Logger;
+
+  // Transports
+  addTransport(transport: Transport): Logger;
+  removeTransport(name: string): Logger;
+  clearTransports(): Logger;
+  getTransports(): Transport[];
+  flush(): Promise<void>;
+
+  // Utilities
+  startTimer(label?: string): LogTimer;
+  child(context: Record<string, any>): Logger;
 }
 ```
 
@@ -33,14 +46,13 @@ interface PlipLogger {
 All logging methods follow the same signature pattern:
 
 ```typescript
-type LogMethod = (message: string, data?: any) => PlipLogger;
+type LogMethod = (...args: any[]) => void;
 ```
 
 **Parameters**:
-- `message`: Required string describing the log event
-- `data`: Optional data of any serializable type
+- `args`: Any number of values. Strings are printed as-is, `Error` instances print their stack, and other values are JSON-serialized.
 
-**Returns**: The logger instance for method chaining
+**Returns**: `void` — logging methods do not chain.
 
 ### `PlipConfig`
 
@@ -48,21 +60,117 @@ Configuration interface for customizing logger behavior.
 
 ```typescript
 interface PlipConfig {
-  enableEmojis?: boolean;
+  silent?: boolean;
   enableColors?: boolean;
+  enableSyntaxHighlighting?: boolean;
+  theme?: Partial<PlipTheme>;
   enabledLevels?: LogLevel[];
+  minLevel?: LogLevel;
+  devOnly?: boolean;
+  enableTimestamp?: boolean;
+  enableStructuredOutput?: boolean;
+  includeRequestId?: boolean;
+  includeContext?: boolean;
+  onError?: LogErrorHandler;
 }
 ```
 
 See [Configuration API](/api/configuration) for detailed property descriptions.
+
+### `ResolvedPlipConfig`
+
+A `PlipConfig` with every presentation option resolved. `minLevel` and `onError` stay optional, because "unset" is meaningful for both.
+
+```typescript
+type ResolvedPlipConfig =
+  Required<Omit<PlipConfig, 'minLevel' | 'onError'>> & Pick<PlipConfig, 'minLevel' | 'onError'>;
+```
+
+This is the type of `defaultConfig`, `ssrConfig` and `csrConfig`, and what the `PlipLogger` constructor expects.
 
 ### `LogLevel`
 
 Union type of all available log levels.
 
 ```typescript
-type LogLevel = 'verbose' | 'debug' | 'info' | 'success' | 'warn' | 'error' | 'fatal';
+type LogLevel = 'info' | 'warn' | 'error' | 'success' | 'debug' | 'trace' | 'verbose';
 ```
+
+### `LogErrorHandler`
+
+Called when a transport throws or rejects. Used by `PlipConfig.onError` and `TransportConfig.onError`.
+
+```typescript
+type LogErrorHandler = (error: unknown, transportName: string) => void;
+```
+
+### `ColorFn`
+
+A single-argument string transform, used throughout the theme.
+
+```typescript
+type ColorFn = (text: string) => string;
+```
+
+### `PlipTheme`
+
+```typescript
+interface PlipTheme {
+  colors: Record<LogLevel, ColorFn>;
+  dimColors: Record<LogLevel, ColorFn>;
+}
+```
+
+### `LogTimer`
+
+Returned by `startTimer()`.
+
+```typescript
+interface LogTimer {
+  label: string;
+  startTime: number;
+  end(message?: string): void;
+}
+```
+
+### `LogEntry` / `FormattedLogEntry`
+
+```typescript
+interface LogEntry {
+  level: LogLevel;
+  message: string;
+  timestamp: Date;
+  context?: Record<string, any>;
+  requestId?: string;
+  args: any[];
+}
+
+interface FormattedLogEntry extends LogEntry {
+  formattedMessage: string;
+}
+```
+
+## Level Severity Helpers
+
+Plip exports the severity ranking behind `minLevel`, plus two helpers built on it.
+
+```typescript
+import { LOG_LEVEL_SEVERITY, levelsAtOrAbove, meetsMinLevel } from '@ru-dr/plip';
+
+const LOG_LEVEL_SEVERITY: Record<LogLevel, number>;
+function levelsAtOrAbove(minLevel: LogLevel): LogLevel[];
+function meetsMinLevel(level: LogLevel, minLevel: LogLevel): boolean;
+```
+
+`LOG_LEVEL_SEVERITY` ranks `trace` 10, `verbose` 20, `debug` 30, `info` 40, `success` 40, `warn` 50, `error` 60. `success` shares a rank with `info` deliberately.
+
+```typescript
+LOG_LEVEL_SEVERITY.error;      // 60
+levelsAtOrAbove('info');       // ['info', 'success', 'warn', 'error']
+meetsMinLevel('debug', 'warn'); // false
+```
+
+`levelsAtOrAbove` returns the levels ordered from least to most severe, which makes it a convenient way to build an `enabledLevels` allowlist.
 
 ## Factory Function Types
 
@@ -71,15 +179,14 @@ type LogLevel = 'verbose' | 'debug' | 'info' | 'success' | 'warn' | 'error' | 'f
 Factory function type for creating logger instances.
 
 ```typescript
-type CreatePlipFunction = (config?: PlipConfig) => PlipLogger;
+type CreatePlipFunction = (config?: Partial<PlipConfig>) => Logger;
 ```
 
 **Usage**:
 ```typescript
 import { createPlip } from '@ru-dr/plip';
 
-const logger: PlipLogger = createPlip({
-  enableEmojis: true,
+const logger: Logger = createPlip({
   enableColors: true,
   enabledLevels: ['info', 'warn', 'error']
 });
@@ -87,9 +194,9 @@ const logger: PlipLogger = createPlip({
 
 ## Utility Types
 
-### `LogData`
+### Log data
 
-Type for the optional data parameter in log methods.
+Log methods accept any values as extra arguments. These types are not exported by Plip; they are shown here only to illustrate what can be passed.
 
 ```typescript
 type LogData = any;
@@ -115,22 +222,24 @@ const objectData: LogData = {
 const arrayData: LogData = ["item1", "item2", "item3"];
 ```
 
-### `PartialPlipConfig`
+### `Partial<PlipConfig>`
 
-Partial version of `PlipConfig` for configuration updates.
+Configuration updates use TypeScript's built-in `Partial`:
 
 ```typescript
 type PartialPlipConfig = Partial<PlipConfig>;
 ```
 
-Used in the `configure` method:
+Used in the `configure` method, which returns a new logger:
 ```typescript
-logger.configure({
-  enableEmojis: false // Only update this property
+const quietLogger = logger.configure({
+  enableColors: false // Only update this property
 });
 ```
 
 ## Level-Specific Types
+
+These narrow aliases are not exported by Plip; define them yourself if you need them.
 
 ### `VerboseLevel`
 
@@ -168,13 +277,15 @@ type WarnLevel = 'warn';
 type ErrorLevel = 'error';
 ```
 
-### `FatalLevel`
+### `TraceLevel`
 
 ```typescript
-type FatalLevel = 'fatal';
+type TraceLevel = 'trace';
 ```
 
 ## Type Guards
+
+Plip does not ship type guards; the following are examples you can copy into your own code.
 
 ### `isLogLevel`
 
@@ -182,7 +293,7 @@ Type guard to check if a string is a valid log level.
 
 ```typescript
 function isLogLevel(value: string): value is LogLevel {
-  return ['verbose', 'debug', 'info', 'success', 'warn', 'error', 'fatal'].includes(value);
+  return ['verbose', 'debug', 'info', 'success', 'warn', 'error', 'trace'].includes(value);
 }
 ```
 
@@ -199,11 +310,11 @@ if (isLogLevel(userInput)) {
 Type guard to check if an object is a Plip logger instance.
 
 ```typescript
-function isPlipLogger(obj: any): obj is PlipLogger {
-  return obj && 
+function isPlipLogger(obj: any): obj is Logger {
+  return obj &&
          typeof obj.info === 'function' &&
          typeof obj.error === 'function' &&
-         typeof obj.config === 'object';
+         typeof obj.configure === 'function';
 }
 ```
 
@@ -214,7 +325,7 @@ function isPlipLogger(obj: any): obj is PlipLogger {
 Generic type for logger methods with custom return types.
 
 ```typescript
-type LoggerMethod<T = PlipLogger> = (message: string, data?: any) => T;
+type LoggerMethod<T = void> = (...args: any[]) => T;
 ```
 
 ### `ConfigurableLogger<T>`
@@ -223,8 +334,7 @@ Generic interface for configurable loggers.
 
 ```typescript
 interface ConfigurableLogger<T extends PlipConfig = PlipConfig> {
-  config: T;
-  configure(config: Partial<T>): void;
+  configure(config: Partial<T>): Logger;
 }
 ```
 
@@ -234,18 +344,16 @@ interface ConfigurableLogger<T extends PlipConfig = PlipConfig> {
 
 ```typescript
 interface StrictPlipConfig {
-  enableEmojis: boolean;
   enableColors: boolean;
   enabledLevels: LogLevel[];
 }
 
-function createStrictPlip(config: StrictPlipConfig): PlipLogger {
+function createStrictPlip(config: StrictPlipConfig): Logger {
   return createPlip(config);
 }
 
 // Usage requires all properties
 const logger = createStrictPlip({
-  enableEmojis: true,      // Required
   enableColors: true,      // Required
   enabledLevels: ['info']  // Required
 });
@@ -260,7 +368,7 @@ interface LimitedPlipConfig extends Omit<PlipConfig, 'enabledLevels'> {
   enabledLevels?: LimitedLogLevel[];
 }
 
-function createLimitedLogger(config?: LimitedPlipConfig): PlipLogger {
+function createLimitedLogger(config?: LimitedPlipConfig): Logger {
   return createPlip(config);
 }
 ```
@@ -268,12 +376,12 @@ function createLimitedLogger(config?: LimitedPlipConfig): PlipLogger {
 ### Method-Specific Types
 
 ```typescript
-type InfoMethod = PlipLogger['info'];
-type ErrorMethod = PlipLogger['error'];
-type ConfigProperty = PlipLogger['config'];
+type InfoMethod = Logger['info'];
+type ErrorMethod = Logger['error'];
+type ConfigureMethod = Logger['configure'];
 
 // Extract method signature
-type LogMethodSignature = (message: string, data?: any) => PlipLogger;
+type LogMethodSignature = (...args: any[]) => void;
 ```
 
 ## Type Examples
@@ -288,20 +396,13 @@ interface ServiceLoggerConfig {
 }
 
 class ServiceLogger {
-  private logger: PlipLogger;
+  private logger: Logger;
   
   constructor(private config: ServiceLoggerConfig) {
     this.logger = createPlip({
-      enableEmojis: config.environment === 'development',
       enableColors: config.environment !== 'test',
-      enabledLevels: this.getLevelsFromMinLevel(config.logLevel)
+      minLevel: config.logLevel
     });
-  }
-  
-  private getLevelsFromMinLevel(minLevel: ServiceLoggerConfig['logLevel']): LogLevel[] {
-    const allLevels: LogLevel[] = ['verbose', 'debug', 'info', 'success', 'warn', 'error', 'fatal'];
-    const levelIndex = allLevels.indexOf(minLevel);
-    return allLevels.slice(levelIndex);
   }
   
   info(message: string, data?: any): void {
@@ -355,7 +456,7 @@ userLogger.error("Database error", errorData);
 
 ```typescript
 interface WrappedLogger {
-  log: PlipLogger;
+  log: Logger;
   context: Record<string, any>;
 }
 
@@ -387,21 +488,19 @@ function logSafely(logger: unknown, message: string, data?: any): void {
 
 ```typescript
 interface ProductionConfig extends PlipConfig {
-  enableEmojis: false;
   enableColors: false;
 }
 
 const prodConfig: ProductionConfig = {
-  enableEmojis: false,
   enableColors: false,
-  enabledLevels: ['warn', 'error', 'fatal']
+  enabledLevels: ['warn', 'error']
 };
 ```
 
 ### 3. Use Generic Constraints
 
 ```typescript
-function createTypedLogger<T extends Partial<PlipConfig>>(config: T): PlipLogger {
+function createTypedLogger<T extends Partial<PlipConfig>>(config: T): Logger {
   return createPlip(config);
 }
 ```
@@ -412,11 +511,23 @@ All types are available for import:
 
 ```typescript
 import type {
-  PlipLogger,
+  Logger,
+  LoggerFactory,
   PlipConfig,
+  ResolvedPlipConfig,
+  PlipTheme,
+  ColorFn,
   LogLevel,
-  LogData,
-  PartialPlipConfig
+  LogErrorHandler,
+  LogTimer,
+  LogEntry,
+  FormattedLogEntry,
+  Transport,
+  TransportConfig,
+  ConsoleTransportConfig,
+  FileTransportConfig,
+  RemoteTransportConfig,
+  BrowserTransportConfig
 } from '@ru-dr/plip';
 ```
 

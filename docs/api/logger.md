@@ -6,7 +6,18 @@ Complete API reference for Plip Logger methods and functionality.
 
 ### Factory Methods
 
-#### `createPlip(config?: PlipConfi**Output**: `🔬 [TRACE] Execution path { "function": "processUser", "line": 42 }`
+#### `createPlip(config?: Partial<PlipConfig>): PlipLogger`
+
+Creates a new logger instance with custom configuration.
+
+```typescript
+import { createPlip } from '@ru-dr/plip';
+
+const logger = createPlip({
+  enableColors: true,
+  enabledLevels: ['info', 'warn', 'error']
+});
+```
 
 ### Context Methods
 
@@ -24,41 +35,75 @@ userLogger.info("User performed action", { action: "login" });
 // Includes both the attached context and the additional data
 ```
 
-#### `clearContext(): PlipLogger`
+#### `child(context: Record<string, any>): PlipLogger`
 
-Removes all attached context from the logger.
+Alias for `withContext`. Creates a child logger that inherits the parent context and adds its own.
 
 ```typescript
-const cleanLogger = userLogger.clearContext();
-cleanLogger.info("Context cleared"); // No context included
+const requestLogger = userLogger.child({ requestId: "req-456" });
+requestLogger.info("Handling request");
 ```
 
 ### Configuration Methods
 
 #### `configure(config: Partial<PlipConfig>): PlipLogger`
 
-Updates the logger configuration.
+Returns a **new** logger with the given configuration merged in. The original logger is left unchanged.
 
 ```typescript
-logger.configure({
-  enableEmojis: false,
+const quietLogger = logger.configure({
   enableColors: true,
   enabledLevels: ['info', 'warn', 'error']
 });
 ```
 
-#### `silent(enabled: boolean = true): PlipLogger`
+#### `silent(): PlipLogger`
 
-Enables or disables silent mode.
+Returns a new logger with all output suppressed.
 
 ```typescript
-logger.silent(true);   // Suppress all output
-logger.silent(false);  // Re-enable output
+const quiet = logger.silent(); // Suppresses all output
+quiet.info("Not printed");
+logger.info("Still printed");  // Original logger is unaffected
 ```
+
+#### `levels(...levels: LogLevel[]): PlipLogger`
+
+Returns a new logger whose `enabledLevels` allowlist is replaced by the given levels.
+
+```typescript
+const prodLogger = logger.levels('info', 'warn', 'error');
+```
+
+#### `minLevel(level: LogLevel): PlipLogger`
+
+Returns a new logger with a severity threshold: levels ranked below `level` are dropped.
+
+```typescript
+const quieter = logger.minLevel('warn');
+
+quieter.error("Payment failed");  // Logged
+quieter.warn("Retrying");         // Logged
+quieter.info("Request received"); // Dropped
+logger.info("Still printed");     // Original logger is unaffected
+```
+
+The ranking is `trace` 10, `verbose` 20, `debug` 30, `info` 40, `success` 40, `warn` 50, `error` 60 — so `minLevel('info')` keeps `success` as well.
+
+`minLevel` and `levels` are independent filters and intersect when both are applied:
+
+```typescript
+const logger = plip
+  .levels('debug', 'info', 'warn', 'error')
+  .minLevel('warn');
+// Only warn and error survive
+```
+
+See [Log Levels](/guide/log-levels) for the full explanation.
 
 ### Transport Management
 
-#### `addTransport(transport: BaseTransport): PlipLogger`
+#### `addTransport(transport: Transport): PlipLogger`
 
 Adds a transport to the logger.
 
@@ -89,30 +134,69 @@ Removes all transports from the logger.
 logger.clearTransports();
 ```
 
+#### `getTransports(): Transport[]`
+
+Returns the transports currently attached to the logger.
+
+```typescript
+logger.getTransports().map(transport => transport.name);
+```
+
+#### `flush(): Promise<void>`
+
+Resolves once every transport has drained its pending work: in-flight writes complete, and each transport that implements `flush()` is asked to drain its buffer.
+
+This matters before the process exits. `FileTransport` queues writes and `RemoteTransport` batches entries, so without a flush the last logs can be lost:
+
+```typescript
+import { createPlip, FileTransport } from '@ru-dr/plip';
+
+const logger = createPlip();
+logger.addTransport(new FileTransport({
+  name: 'file',
+  filename: './logs/app.log'
+}));
+
+logger.error("Fatal startup failure");
+
+await logger.flush();
+process.exit(1);
+```
+
+Loggers derived with `child()`, `withContext()`, `configure()`, `minLevel()` and friends share the parent's transports, so flushing any of them drains the whole family.
+
+```typescript
+const requestLogger = logger.child({ requestId: 'req-456' });
+await requestLogger.flush(); // Drains the same transports as logger.flush()
+```
+
+`flush()` does not reject. A transport that fails while draining reports the failure through its own `TransportConfig.onError`, falling back to `console.error`.
+
 ### Performance Methods
 
-#### `time(label: string): void`
+#### `startTimer(label?: string): LogTimer`
 
-Starts a timer with the given label.
+Starts a timer and returns a `LogTimer` (`{ label, startTime, end(message?) }`). Calling `end()` logs the elapsed time at `info` level.
 
 ```typescript
-logger.time('database-query');
+const timer = logger.startTimer('database-query');
 // ... perform database operation
-logger.timeEnd('database-query');
+timer.end();
+// Output: [INFO] Timer "database-query" completed in 142.00ms
 ```
 
-#### `timeEnd(label: string): void`
-
-Ends a timer and logs the elapsed time.
+Pass a message to `end()` to customize the output:
 
 ```typescript
-logger.time('api-call');
+const timer = logger.startTimer('api-call');
 await fetch('/api/data');
-logger.timeEnd('api-call');
-// Output: ⏱️ [TIMER] api-call: 142ms
+timer.end('API call finished');
+// Output: [INFO] API call finished (142.00ms)
 ```
 
-## Factory Functions PlipLogger`
+## Factory Functions
+
+### `createPlip(config?: Partial<PlipConfig>): PlipLogger`
 
 Creates a new logger instance with custom configuration.
 
@@ -120,13 +204,17 @@ Creates a new logger instance with custom configuration.
 import { createPlip } from '@ru-dr/plip';
 
 const logger = createPlip({
-  enableEmojis: true,
   enableColors: true,
   enabledLevels: ['info', 'warn', 'error']
 });
 ```
 
-#### `createSSRLogger(overrides?: PlipConfig): PlipLogger`
+**Parameters**:
+- `config` (optional): Configuration object of type `Partial<PlipConfig>`
+
+**Returns**: A new `PlipLogger` instance
+
+#### `createSSRLogger(overrides?: Partial<PlipConfig>): PlipLogger`
 
 Creates a logger optimized for Server-Side Rendering.
 
@@ -138,7 +226,7 @@ const ssrLogger = createSSRLogger({
 });
 ```
 
-#### `createCSRLogger(overrides?: PlipConfig): PlipLogger`
+#### `createCSRLogger(overrides?: Partial<PlipConfig>): PlipLogger`
 
 Creates a logger optimized for Client-Side Rendering.
 
@@ -186,15 +274,22 @@ csrLogger.info("Client-side operation completed");
 
 ### Constructor
 
-```typescript
-import { PlipLogger } from '@ru-dr/plip';
+`PlipLogger` requires a fully-resolved config, a theme, and (optionally) a context and transports. Prefer the factory functions, which fill these in for you.
 
-const logger = new PlipLogger(config?: PlipConfig);
+```typescript
+import { PlipLogger, defaultConfig, defaultTheme, ConsoleTransport } from '@ru-dr/plip';
+
+const logger = new PlipLogger(
+  defaultConfig,
+  defaultTheme,
+  {},
+  [new ConsoleTransport({ name: 'console' })]
+);
 ```
 
 ### Log Level Methods
 
-#### `verbose(message: string, ...args: any[]): void`
+#### `verbose(...args: any[]): void`
 
 Logs verbose debugging information.
 
@@ -203,9 +298,9 @@ logger.verbose("Function entered", { params: { id: 123 } });
 logger.verbose("Processing item", 5, "of", 10);
 ```
 
-**Output**: `🔍 [VERBOSE] Function entered { "params": { "id": 123 } }`
+**Output**: `[VERBOSE] Function entered { "params": { "id": 123 } }`
 
-#### `debug(message: string, ...args: any[]): void`
+#### `debug(...args: any[]): void`
 
 Logs debug information for development.
 
@@ -214,9 +309,9 @@ logger.debug("Cache miss for key", { key: "user:123" });
 logger.debug("Variable state:", { count: 42, active: true });
 ```
 
-**Output**: `� [DEBUG] Cache miss for key { "key": "user:123" }`
+**Output**: `[DEBUG] Cache miss for key { "key": "user:123" }`
 
-#### `info(message: string, ...args: any[]): void`
+#### `info(...args: any[]): void`
 
 Logs general information messages.
 
@@ -225,9 +320,9 @@ logger.info("Server started on port", 3000);
 logger.info("User authenticated", { userId: "123", role: "admin" });
 ```
 
-**Output**: `🫧 [INFO] Server started on port 3000`
+**Output**: `[INFO] Server started on port 3000`
 
-#### `success(message: string, ...args: any[]): void`
+#### `success(...args: any[]): void`
 
 Logs successful operations.
 
@@ -236,9 +331,9 @@ logger.success("Database connected successfully");
 logger.success("Email sent to", "user@example.com");
 ```
 
-**Output**: `✅ [SUCCESS] Database connected successfully`
+**Output**: `[SUCCESS] Database connected successfully`
 
-#### `warn(message: string, ...args: any[]): void`
+#### `warn(...args: any[]): void`
 
 Logs warning messages.
 
@@ -247,9 +342,9 @@ logger.warn("API rate limit approaching", { remaining: 10 });
 logger.warn("Deprecated method used:", "oldFunction()");
 ```
 
-**Output**: `⚠️ [WARN] API rate limit approaching { "remaining": 10 }`
+**Output**: `[WARN] API rate limit approaching { "remaining": 10 }`
 
-#### `error(message: string, ...args: any[]): void`
+#### `error(...args: any[]): void`
 
 Logs error messages.
 
@@ -258,50 +353,18 @@ logger.error("Failed to connect to database", error);
 logger.error("Validation failed", { field: "email", value: "invalid" });
 ```
 
-**Output**: `💥 [ERROR] Failed to connect to database Error: Connection timeout`
+**Output**: `[ERROR] Failed to connect to database Error: Connection timeout`
 
-#### `trace(message: string, ...args: any[]): void`
+#### `trace(...args: any[]): void`
 
-Logs trace information with stack traces.
+Logs trace-level diagnostic information. Stack traces are not captured automatically; pass an `Error` if you want one.
 
 ```typescript
 logger.trace("Execution path", { function: "processUser", line: 42 });
 logger.trace("Stack trace for debugging");
 ```
 
-**Output**: `� [TRACE] Execution path { "function": "processUser", "line": 42 }`
-
-## Factory Functions
-
-### `createPlip(config?: PlipConfig): PlipLogger`
-
-Creates a new logger instance with custom configuration.
-
-```typescript
-import { createPlip } from '@ru-dr/plip';
-
-const customLogger = createPlip({
-  enableEmojis: true,
-  enableColors: true,
-  enabledLevels: ['info', 'warn', 'error']
-});
-```
-
-**Parameters**:
-- `config` (optional): Configuration object of type `PlipConfig`
-
-**Returns**: A new `PlipLogger` instance
-
-## Logger Instance Properties
-
-### `config: PlipConfig`
-
-Read-only access to the logger's current configuration:
-
-```typescript
-const logger = createPlip({ enableEmojis: true });
-console.log(logger.config.enableEmojis); // true
-```
+**Output**: `[TRACE] Execution path { "function": "processUser", "line": 42 }`
 
 ## Configuration Methods
 
@@ -309,15 +372,15 @@ Logger configuration methods support fluent chaining:
 
 ```typescript
 const customLogger = plip
-  .withEmojis(true)
   .withColors(true)
   .withSyntaxHighlighting(true)
   .withContext({ service: "api", version: "1.0" })
-  .levels('info', 'warn', 'error');
+  .levels('info', 'warn', 'error')
+  .minLevel('info');
 
 // Context is automatically included in all logs
 customLogger.info("Request processed", { endpoint: "/users" });
-// Output: 🫧 [INFO] Request processed {"service":"api","version":"1.0","endpoint":"/users"}
+// Output: [INFO] Request processed {"service":"api","version":"1.0","endpoint":"/users"}
 
 // Note: Logging methods (info, debug, etc.) do not support chaining
 plip.info("Starting operation");
@@ -335,15 +398,15 @@ const authLogger = plip.withContext({ scope: "auth", service: "user-service" });
 
 // Context is automatically included
 authLogger.info("Login attempt"); 
-// Output: 🫧 [INFO] Login attempt {"scope":"auth","service":"user-service"}
+// Output: [INFO] Login attempt {"scope":"auth","service":"user-service"}
 
 authLogger.error("Login failed", { userId: 123, reason: "invalid_password" });
-// Output: 💥 [ERROR] Login failed {"scope":"auth","service":"user-service","userId":123,"reason":"invalid_password"}
+// Output: [ERROR] Login failed {"scope":"auth","service":"user-service","userId":123,"reason":"invalid_password"}
 
 // Context can be extended by chaining
 const requestLogger = authLogger.withContext({ requestId: "req-456" });
 requestLogger.warn("Rate limit exceeded");
-// Output: ⚠️ [WARN] Rate limit exceeded {"scope":"auth","service":"user-service","requestId":"req-456"}
+// Output: [WARN] Rate limit exceeded {"scope":"auth","service":"user-service","requestId":"req-456"}
 ```
 
 ## Data Parameter
@@ -396,36 +459,39 @@ plip.info("Request details", {
 
 ## Error Handling
 
-Plip handles logging errors gracefully and never throws exceptions:
+Plip serializes arguments with `JSON.stringify`, so ordinary values are safe to log:
 
 ```typescript
-// These won't crash your application
-plip.info("Message", { circular: /* circular reference */ });
 plip.info("Message", undefined);
 plip.info("Message", Symbol("test"));
 ```
 
-## Performance Considerations
-
-### Lazy Evaluation
-
-Log data is only processed when the log level is enabled:
+Values that `JSON.stringify` cannot handle — most notably objects containing circular references — will throw. Break the cycle (or pass a pre-serialized string) before logging them:
 
 ```typescript
-const expensiveData = () => {
-  // This only runs if debug level is enabled
-  return performExpensiveCalculation();
-};
+// This throws: JSON.stringify cannot serialize a circular structure
+// plip.info("Message", objectWithCircularReference);
+```
 
-plip.debug("Debug info", expensiveData());
+## Performance Considerations
+
+### Disabled Levels Are Cheap
+
+When a level is not enabled, Plip returns before formatting or serializing anything. Note that arguments are still evaluated by JavaScript before the call, so expensive work should not be inlined in the call:
+
+```typescript
+// performExpensiveCalculation() runs even if `debug` is disabled
+plip.debug("Debug info", performExpensiveCalculation());
 ```
 
 ### Conditional Logging
 
-Check if a level is enabled before expensive operations:
+Guard expensive work with your own flag or a dedicated logger:
 
 ```typescript
-if (logger.isLevelEnabled('debug')) {
+const debugEnabled = process.env.DEBUG === 'true';
+
+if (debugEnabled) {
   const debugData = generateComplexDebugInfo();
   logger.debug("Complex debug info", debugData);
 }
@@ -436,12 +502,12 @@ if (logger.isLevelEnabled('debug')) {
 All methods are fully typed for TypeScript users:
 
 ```typescript
-// TypeScript will catch these errors
-plip.info(123); // Error: message must be string
+// TypeScript will catch this error
 plip.invalidMethod("test"); // Error: method doesn't exist
 
-// Proper usage
-plip.info("Valid message", { any: "data" }); // ✓
+// Log methods accept any number of arguments of any type
+plip.info("Valid message", { any: "data" });
+plip.info(123, true, ["a", "b"]);
 ```
 
 ## Usage Examples
@@ -466,7 +532,6 @@ plip.error("Login failed", { error: "Invalid credentials", attempt: 3 });
 import { createPlip } from '@ru-dr/plip';
 
 const apiLogger = createPlip({
-  enableEmojis: true,
   enableColors: true,
   enabledLevels: ['info', 'warn', 'error']
 });
@@ -483,7 +548,6 @@ apiLogger.info("API request received", {
 ```typescript
 class UserService {
   private logger = createPlip({
-    enableEmojis: true,
     enabledLevels: ['debug', 'info', 'warn', 'error']
   });
 

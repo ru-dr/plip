@@ -26,49 +26,8 @@ $ bun add @ru-dr/plip
 
 :::
 
-### 🌍 Other Languages (Coming Soon!)
-
-Plip is expanding to bring the same delightful logging experience to more languages:
-
-::: info Python Support (In Development)
-```python
-# Coming Soon! 🐍
-pip install plip
-```
-**Status:** 🚧 Early development - [Track progress](https://github.com/ru-dr/plip/issues)
-:::
-
-::: info Java Support (Planned)
-```bash
-# Coming Soon! ☕
-<dependency>
-    <groupId>io.plip</groupId>
-    <artifactId>plip-logger</artifactId>
-    <version>1.0.0</version>
-</dependency>
-```
-**Status:** 📋 Planned for 2025 - [Join discussion](https://github.com/ru-dr/plip/discussions)
-:::
-
-::: info PHP Support (Planned)
-```bash
-# Coming Soon! 🐘
-composer require plip/logger
-```
-**Status:** 📋 Planned for 2025 - [Join discussion](https://github.com/ru-dr/plip/discussions)
-:::
-
-::: info More Languages
-We're also exploring support for:
-- **Go** 🐹 - Lightweight, fast logging
-- **Rust** 🦀 - Zero-cost abstractions
-- **C#** 💜 - .NET ecosystem integration
-- **Ruby** 💎 - Rails-friendly logging
-
-**Want your language prioritized?** [Vote or request here!](https://github.com/ru-dr/plip/discussions)
-:::
-
-> 💡 **Contribute:** Help us bring plip to your favorite language! Check our [Contributing Guide](../request/contributing.md) to get involved.
+Plip has zero runtime dependencies, so installing it adds nothing else to your
+lockfile. The package is marked `"sideEffects": false` and is tree-shakeable.
 
 ## Requirements
 
@@ -76,27 +35,31 @@ We're also exploring support for:
 
 Plip requires Node.js 16 or higher:
 
-- ✅ Node.js 16.x
-- ✅ Node.js 18.x
-- ✅ Node.js 20.x
-- ✅ Node.js 21.x
+- Node.js 16.x
+- Node.js 18.x
+- Node.js 20.x
+- Node.js 21.x
 
 ### TypeScript Support
 
 For TypeScript projects, Plip provides full type definitions out of the box. No additional `@types` packages are needed.
 
 **Supported TypeScript versions:**
-- ✅ TypeScript 4.5+
-- ✅ TypeScript 5.x
+- TypeScript 4.5+
+- TypeScript 5.x
 
 ## Import Methods
+
+Plip ships a dual build: ESM at `dist/esm/index.js`, CommonJS at
+`dist/cjs/index.js`, and type definitions at `dist/esm/index.d.ts`. Both
+`import` and `require` work without extra configuration.
 
 ### ES Modules (Recommended)
 
 ```typescript
 import { plip } from '@ru-dr/plip';
 
-plip.info("Hello from ESM! 👋");
+plip.info("Hello from ESM! ");
 ```
 
 ### CommonJS
@@ -104,16 +67,18 @@ plip.info("Hello from ESM! 👋");
 ```javascript
 const { plip } = require('@ru-dr/plip');
 
-plip.info("Hello from CommonJS! 👋");
+plip.info("Hello from CommonJS! ");
 ```
 
 ### Destructured Import
 
 ```typescript
-import { createLogger, LogLevel } from '@ru-dr/plip';
+import { createPlip } from '@ru-dr/plip';
+import type { LogLevel } from '@ru-dr/plip';
 
-const logger = createLogger({ level: LogLevel.DEBUG });
-logger.debug("Custom logger created! 🔧");
+const levels: LogLevel[] = ['debug', 'info', 'warn', 'error'];
+const logger = createPlip({ enabledLevels: levels });
+logger.debug("Custom logger created! ");
 ```
 
 ## Verification
@@ -123,8 +88,7 @@ After installation, verify Plip is working correctly:
 ```typescript
 import { plip } from '@ru-dr/plip';
 
-plip.success("🎉 Plip is installed and ready!");
-plip.info("Version:", plip.version);
+plip.success("Plip is installed and ready!");
 ```
 
 ## Next Steps

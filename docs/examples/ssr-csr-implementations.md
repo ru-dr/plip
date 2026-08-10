@@ -7,8 +7,6 @@ This document provides practical, copy-paste examples of implementing Plip Logge
 - [Next.js Full-Stack Implementation](#nextjs-full-stack-implementation)
 - [Express.js + React SPA](#expressjs--react-spa)
 - [NestJS + Angular](#nestjs--angular)
-- [Fastify + Vue.js](#fastify--vuejs)
-- [Universal/Isomorphic Apps](#universalisomorphic-apps)
 - [Microservices Architecture](#microservices-architecture)
 
 ## Next.js Full-Stack Implementation

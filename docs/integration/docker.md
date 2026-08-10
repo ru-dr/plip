@@ -107,24 +107,31 @@ CMD ["node", "dist/index.js"]
 
 ```typescript
 // src/config/docker.ts
-import { Logger } from '@ru-dr/plip'
+import { createPlip, levelsAtOrAbove, type Logger, type LogLevel } from '@ru-dr/plip'
+
+// Plip itself does not read LOG_LEVEL — this is your own glue code.
+// `levelsAtOrAbove` is exported by Plip and follows its severity ranking.
+function levelsFrom(minLevel = 'info'): LogLevel[] {
+  return levelsAtOrAbove(minLevel as LogLevel)
+}
 
 export function createDockerLogger(): Logger {
-  return new Logger({
-    level: process.env.LOG_LEVEL || 'info',
-    timestamp: process.env.LOG_TIMESTAMP === 'true',
-    colorize: false, // Disable colors in containers
-    format: process.env.LOG_FORMAT || 'json' // Use JSON format for container logs
+  return createPlip({
+    enabledLevels: levelsFrom(process.env.LOG_LEVEL),
+    enableTimestamp: process.env.LOG_TIMESTAMP === 'true',
+    enableColors: false, // Disable colors in containers
+    // One JSON object per line, for container log collectors
+    enableStructuredOutput: (process.env.LOG_FORMAT || 'json') === 'json'
   })
 }
 
 // Enhanced Docker logger with container metadata
 export function createEnhancedDockerLogger(): Logger {
-  const logger = new Logger({
-    level: process.env.LOG_LEVEL || 'info',
-    timestamp: true,
-    colorize: false,
-    format: 'json'
+  const logger = createPlip({
+    enabledLevels: levelsFrom(process.env.LOG_LEVEL),
+    enableTimestamp: true,
+    enableColors: false,
+    enableStructuredOutput: true
   })
 
   // Add container metadata to all logs
@@ -393,14 +400,15 @@ spec:
 
 ```typescript
 // src/config/kubernetes.ts
-import { Logger } from '@ru-dr/plip'
+import { createPlip, type Logger } from '@ru-dr/plip'
+import { levelsFrom } from './docker'
 
 export function createKubernetesLogger(): Logger {
-  const logger = new Logger({
-    level: process.env.LOG_LEVEL || 'info',
-    timestamp: true,
-    colorize: false,
-    format: 'json'
+  const logger = createPlip({
+    enabledLevels: levelsFrom(process.env.LOG_LEVEL),
+    enableTimestamp: true,
+    enableColors: false,
+    enableStructuredOutput: true
   })
 
   // Add Kubernetes metadata to all logs
@@ -755,12 +763,12 @@ scrape_configs:
 ```typescript
 // src/routes/health.ts
 import { Router } from 'express'
-import { Logger } from '@ru-dr/plip'
+import { createPlip } from '@ru-dr/plip'
 
 const router = Router()
-const logger = new Logger({
-  level: 'info',
-  timestamp: true
+const logger = createPlip({
+  enabledLevels: ['info', 'success', 'warn', 'error'],
+  enableTimestamp: true
 })
 
 router.get('/health', async (req, res) => {

@@ -25,7 +25,6 @@ Create a custom logger with your preferred configuration:
 import { createPlip } from '@ru-dr/plip';
 
 const logger = createPlip({
-  enableEmojis: true,
   enableColors: true,
   enabledLevels: ['info', 'warn', 'error']
 });
@@ -35,7 +34,7 @@ logger.info("Custom logger created");
 
 ## Log Levels
 
-Plip provides 7 log levels, each with distinct colors and emojis:
+Plip provides 7 log levels, each with distinct colors:
 
 ```typescript
 // Detailed debugging information
@@ -99,9 +98,8 @@ const userLogger = logger.withContext({
 userLogger.info("User action performed", { action: "login" });
 userLogger.warn("Rate limit warning", { attempts: 5 });
 
-// Clear context when needed
-const cleanLogger = userLogger.clearContext();
-cleanLogger.info("Context cleared");
+// The original logger is unchanged - use it when you don't want the context
+logger.info("No context here");
 ```
 
 ## SSR vs CSR Usage
@@ -127,7 +125,7 @@ customSSRLogger.info("Custom SSR logger initialized");
 ```
 
 **SSR Features:**
-- Clean output without emojis (better for log files)
+- Clean output (better for log files)
 - Timestamps for chronological tracking
 - Request ID correlation
 - Structured output support for log aggregation
@@ -152,7 +150,7 @@ customCSRLogger.info("Custom CSR logger initialized");
 ```
 
 **CSR Features:**
-- Rich visual experience with emojis and colors
+- Rich visual experience with colors
 - Syntax highlighting for better readability
 - Browser console optimization
 - Reduced clutter (no timestamps or request IDs)
@@ -163,20 +161,20 @@ Track execution time of operations:
 
 ```typescript
 // Start a timer
-logger.time('database-query');
+const timer = logger.startTimer('database-query');
 
 // Perform your operation
 const users = await db.users.findMany();
 
 // End the timer and log the duration
-logger.timeEnd('database-query');
-// Output: ⏱️ [TIMER] database-query: 142ms
+timer.end();
+// Output: [INFO] Timer "database-query" completed in 142.00ms
 
-// Measure function execution
-const result = await logger.measure('api-call', async () => {
-  return await fetch('/api/data').then(r => r.json());
-});
-// Automatically logs: ⏱️ [TIMER] api-call: 89ms
+// Or provide your own message
+const apiTimer = logger.startTimer('api-call');
+const result = await fetch('/api/data').then(r => r.json());
+apiTimer.end('API call finished');
+// Output: [INFO] API call finished (89.00ms)
 ```
 
 ## Transport System
@@ -213,6 +211,7 @@ logger.warn("This goes to console and file");
 logger.error("This goes to console, file, and remote service");
 ```
 
+```typescript
 // Arrays are also beautifully formatted
 const tasks = [
   { id: 1, title: "Complete documentation", done: true },
@@ -269,15 +268,15 @@ const dbLogger = plip.withContext({ scope: "database", pool: "primary" });
 
 // Context is automatically included in all logs
 authLogger.info("User login attempt", { userId: 123 });
-// Output: 🫧 [INFO] User login attempt {"scope":"auth","userId":123}
+// Output: [INFO] User login attempt {"scope":"auth","userId":123}
 
 dbLogger.warn("High connection count", { activeConnections: 45 });
-// Output: ⚠️ [WARN] High connection count {"scope":"database","pool":"primary","activeConnections":45}
+// Output: [WARN] High connection count {"scope":"database","pool":"primary","activeConnections":45}
 
 // Context can be extended by chaining
 const requestLogger = authLogger.withContext({ requestId: "req-789" });
 requestLogger.success("Request completed", { duration: "150ms" });
-// Output: 🎉 [SUCCESS] Request completed {"scope":"auth","requestId":"req-789","duration":"150ms"}
+// Output: [SUCCESS] Request completed {"scope":"auth","requestId":"req-789","duration":"150ms"}
 ```
 
 ### Use Cases for Context Logging
@@ -352,12 +351,12 @@ async function fetchUserData(userId: string) {
 ### Use Appropriate Log Levels
 
 ```typescript
-// ✅ Good - Appropriate level usage
+// Good - Appropriate level usage
 plip.info("Server starting on port 3000");
 plip.warn("Deprecated API endpoint used");
 plip.error("Database query failed");
 
-// ❌ Avoid - Wrong level usage
+// Avoid - Wrong level usage
 plip.error("Server starting on port 3000"); // Not an error
 plip.info("Critical security breach"); // Too low level
 ```
@@ -365,28 +364,28 @@ plip.info("Critical security breach"); // Too low level
 ### Include Context
 
 ```typescript
-// ✅ Good - Includes relevant context
+// Good - Includes relevant context
 plip.error("Failed to process payment", {
   userId: user.id,
   amount: payment.amount,
   errorCode: error.code
 });
 
-// ❌ Poor - Lacks context
+// Poor - Lacks context
 plip.error("Payment failed");
 ```
 
 ### Use Descriptive Messages
 
 ```typescript
-// ✅ Good - Clear and descriptive
+// Good - Clear and descriptive
 plip.info("Email notification sent to user", {
   recipient: user.email,
   template: "welcome",
   deliveryTime: new Date()
 });
 
-// ❌ Poor - Vague message
+// Poor - Vague message
 plip.info("Email sent");
 ```
 
