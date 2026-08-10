@@ -62,7 +62,10 @@ describe('Formatters', () => {
       expect(result).toContain('2024-01-01T10:00:00.000Z');
       expect(result).toContain('[INFO   ]');
       expect(result).toContain('[req_456]');
-      expect(result).toContain('[INFO] test message');
+      // The raw message is used, not formattedMessage, so no ANSI codes or
+      // duplicated level prefix leak into plain-text sinks.
+      expect(result).toContain('test message');
+      expect(result).not.toContain('[INFO] test message');
     });
 
     test('should format timestamp in different formats', () => {
@@ -86,7 +89,7 @@ describe('Formatters', () => {
       expect(result).not.toContain('2024-01-01T10:00:00.000Z');
       expect(result).not.toContain('[INFO   ]');
       expect(result).not.toContain('[req_456]');
-      expect(result).toBe('[INFO] test message');
+      expect(result).toBe('test message');
     });
 
     test('should handle custom level padding', () => {

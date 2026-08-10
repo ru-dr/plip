@@ -1,27 +1,22 @@
-// src/core/index.ts
-
-// Import loggerFactory for creating legacy instances
 import { loggerFactory } from './factory.js';
 import type { PlipConfig } from './config.js';
 
-// Core exports
 export { PlipLogger } from './logger.js';
+export { LOG_LEVEL_SEVERITY, levelsAtOrAbove, meetsMinLevel } from './levels.js';
 export { BaseTransport, TransportManager } from './transport.js';
 export { PlipLoggerFactory, loggerFactory } from './factory.js';
 
-// Configuration exports
-export { 
-  defaultTheme, 
-  defaultConfig, 
-  ssrConfig, 
-  csrConfig, 
-  getAutoConfig, 
-  createSSRConfig, 
-  createCSRConfig 
+export {
+  defaultTheme,
+  defaultConfig,
+  ssrConfig,
+  csrConfig,
+  getAutoConfig,
+  createSSRConfig,
+  createCSRConfig
 } from './config.js';
 
-// Type exports
-export type { LogLevel, PlipConfig, PlipTheme, LogEntry, FormattedLogEntry } from './config.js';
+export type { LogLevel, ColorFn, PlipConfig, ResolvedPlipConfig, LogErrorHandler, PlipTheme, LogEntry, FormattedLogEntry } from './config.js';
 
 // Legacy-compatible logger instances for backward compatibility
 export const plip = loggerFactory.createCSRLogger(); // Default CSR logger

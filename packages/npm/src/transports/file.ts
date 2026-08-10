@@ -1,21 +1,23 @@
-// src/transports/file.ts
-
 import type { FileTransportConfig } from '../types/transport.js';
 import type { FormattedLogEntry } from '../types/config.js';
 import { BaseTransport } from '../core/transport.js';
 import { JsonFormatter } from '../formatters/json.js';
 import { TextFormatter } from '../formatters/text.js';
 
+type FsModule = typeof import('fs');
+type PathModule = typeof import('path');
+
+const DEFAULT_MAX_FILES = 5;
+
 export class FileTransport extends BaseTransport {
   private formatter: JsonFormatter | TextFormatter;
   private writeQueue: string[] = [];
-  private isWriting = false;
+  private pending: Promise<void> = Promise.resolve();
 
   constructor(config: FileTransportConfig) {
     super(config);
-    
-    const fileConfig = config as FileTransportConfig;
-    if (fileConfig.format === 'json') {
+
+    if (config.format === 'json') {
       this.formatter = new JsonFormatter({
         includeTimestamp: true,
         includeLevel: true,
@@ -34,94 +36,98 @@ export class FileTransport extends BaseTransport {
     }
   }
 
-  async log(entry: FormattedLogEntry): Promise<void> {
+  log(entry: FormattedLogEntry): Promise<void> {
     const formattedEntry = this.formatter.format(entry);
     this.writeQueue.push(formattedEntry + '\n');
-    
-    if (!this.isWriting) {
-      await this.flushQueue();
-    }
+
+    // Chain onto the in-flight write instead of dropping the entry: awaiting
+    // log() must guarantee this entry reached the file.
+    return this.flushQueue();
   }
 
-  private async flushQueue(): Promise<void> {
-    if (this.writeQueue.length === 0 || this.isWriting) return;
-    
-    this.isWriting = true;
+  private flushQueue(): Promise<void> {
+    this.pending = this.pending.then(() => this.drain());
+    return this.pending;
+  }
+
+  private async drain(): Promise<void> {
+    if (this.writeQueue.length === 0) return;
+
     const config = this.config as FileTransportConfig;
-    
+
+    // Take only what we have now; entries appended while we await stay queued
+    // for the next drain rather than being wiped.
+    const batch = this.writeQueue.splice(0, this.writeQueue.length);
+
     try {
-      // Check if running in Node.js environment
       if (typeof process !== 'undefined' && process.versions?.node) {
-        // Dynamic import for Node.js fs module
         const fs = await import('fs');
         const path = await import('path');
-        
-        // Ensure directory exists
+
         const dir = path.dirname(config.filename);
         if (!fs.existsSync(dir)) {
           fs.mkdirSync(dir, { recursive: true });
         }
-        
-        // Write queued entries
-        const content = this.writeQueue.join('');
-        fs.appendFileSync(config.filename, content, 'utf8');
-        
-        // Check file rotation if needed
-        await this.checkRotation(fs, path);
+
+        await fs.promises.appendFile(config.filename, batch.join(''), 'utf8');
+
+        this.checkRotation(fs, path);
       } else {
-        // In browser or other environments, we can't write to files
         console.warn('FileTransport: File writing not supported in this environment');
       }
     } catch (error) {
-      console.error('FileTransport: Failed to write to file:', error);
-    } finally {
-      this.writeQueue = [];
-      this.isWriting = false;
+      this.reportError(error);
     }
   }
 
-  private async checkRotation(fs: any, path: any): Promise<void> {
+  private checkRotation(fs: FsModule, path: PathModule): void {
     const config = this.config as FileTransportConfig;
-    
+
     if (!config.maxSize) return;
-    
-    try {
-      const stats = fs.statSync(config.filename);
-      if (stats.size > config.maxSize) {
-        await this.rotateFile(fs, path);
-      }
-    } catch (error) {
-      // File doesn't exist yet, no rotation needed
+
+    if (!fs.existsSync(config.filename)) return;
+
+    if (fs.statSync(config.filename).size > config.maxSize) {
+      this.rotateFile(fs, path);
     }
   }
 
-  private async rotateFile(fs: any, path: any): Promise<void> {
+  private rotateFile(fs: FsModule, path: PathModule): void {
     const config = this.config as FileTransportConfig;
-    const maxFiles = config.maxFiles || 5;
+    const maxFiles = config.maxFiles || DEFAULT_MAX_FILES;
     const { dir, name, ext } = path.parse(config.filename);
-    
-    // Rotate existing files
+
     for (let i = maxFiles - 1; i > 0; i--) {
       const oldFile = path.join(dir, `${name}.${i}${ext}`);
       const newFile = path.join(dir, `${name}.${i + 1}${ext}`);
-      
+
       if (fs.existsSync(oldFile)) {
         if (i === maxFiles - 1) {
-          fs.unlinkSync(oldFile); // Remove oldest file
+          fs.unlinkSync(oldFile);
         } else {
           fs.renameSync(oldFile, newFile);
         }
       }
     }
-    
-    // Move current file to .1
+
     const rotatedFile = path.join(dir, `${name}.1${ext}`);
     if (fs.existsSync(config.filename)) {
       fs.renameSync(config.filename, rotatedFile);
     }
   }
 
+  /**
+   * Drains repeatedly: entries can be appended while an earlier write awaits.
+   * Called by `Logger.flush()`.
+   */
+  async flush(): Promise<void> {
+    while (this.writeQueue.length > 0) {
+      await this.flushQueue();
+    }
+    await this.pending;
+  }
+
   async close(): Promise<void> {
-    await this.flushQueue();
+    await this.flush();
   }
 }

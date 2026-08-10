@@ -1,7 +1,7 @@
 // tests/transport.test.ts
 
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
-import { ConsoleTransport, FileTransport, BrowserTransport, RemoteTransport } from '../src/transports/index.js';
+import { ConsoleTransport, BrowserTransport } from '../src/transports/index.js';
 import { TransportManager, BaseTransport } from '../src/core/transport.js';
 import type { FormattedLogEntry, LogLevel } from '../src/types/config.js';
 

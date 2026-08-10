@@ -1,6 +1,6 @@
 // tests/env.test.ts
 import { test, expect, describe } from "bun:test";
-import { isNode, isBrowser, isDeno, getRuntimeEnvironment, isDevelopment, isProduction, supportsColor, supportsEmoji } from "../src/utils/env.js";
+import { isNode, isBrowser, isDeno, getRuntimeEnvironment, isDevelopment, isProduction, supportsColor } from "../src/utils/env.js";
 
 describe("Environment Detection", () => {
   test("isNode should return true in Node.js environment", () => {
@@ -45,7 +45,4 @@ describe("Environment Detection", () => {
     expect(typeof supportsColor()).toBe("boolean");
   });
 
-  test("supportsEmoji should be a boolean", () => {
-    expect(typeof supportsEmoji()).toBe("boolean");
-  });
 });

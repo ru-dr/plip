@@ -1,6 +1,4 @@
-// src/formatters/json.ts
-
-import type { FormattedLogEntry, LogLevel } from '../types/config.js';
+import type { FormattedLogEntry } from '../types/config.js';
 
 export interface JsonFormatterOptions {
   includeTimestamp?: boolean;

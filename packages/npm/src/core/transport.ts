@@ -1,11 +1,9 @@
-// src/core/transport.ts
-
 import type { Transport, TransportConfig } from '../types/transport.js';
-import type { FormattedLogEntry, LogLevel } from '../types/config.js';
+import type { FormattedLogEntry, LogErrorHandler, LogLevel } from '../types/config.js';
 
 export abstract class BaseTransport implements Transport {
   protected config: TransportConfig;
-  
+
   constructor(config: TransportConfig) {
     this.config = config;
   }
@@ -27,12 +25,21 @@ export abstract class BaseTransport implements Transport {
   }
 
   close(): void | Promise<void> {
-    // Default implementation - do nothing
+  }
+
+  /** Reports a delivery failure through `onError`, or to the console. */
+  protected reportError(error: unknown): void {
+    if (this.config.onError) {
+      this.config.onError(error, this.name);
+      return;
+    }
+    console.error(`Plip: transport "${this.name}" failed:`, error);
   }
 }
 
 export class TransportManager {
   private transports: Map<string, Transport> = new Map();
+  private inFlight: Set<Promise<unknown>> = new Set();
 
   addTransport(transport: Transport): void {
     this.transports.set(transport.name, transport);
@@ -63,20 +70,53 @@ export class TransportManager {
     return this.transports.get(name);
   }
 
-  async log(entry: FormattedLogEntry): Promise<void> {
-    const promises: Promise<void>[] = [];
-    
+  async log(entry: FormattedLogEntry, onError?: LogErrorHandler): Promise<void> {
+    const promises: Promise<unknown>[] = [];
+
     for (const transport of this.transports.values()) {
-      if (!transport.shouldLog || transport.shouldLog(entry.level)) {
+      if (transport.shouldLog && !transport.shouldLog(entry.level)) continue;
+
+      // One failing transport must not stop the others, and it must not fail
+      // silently either: every rejection reaches `onError`.
+      try {
         const result = transport.log(entry);
         if (result instanceof Promise) {
-          promises.push(result);
+          promises.push(this.track(result.catch(error => this.report(error, transport.name, onError))));
         }
+      } catch (error) {
+        this.report(error, transport.name, onError);
       }
     }
 
     if (promises.length > 0) {
-      await Promise.allSettled(promises);
+      await Promise.all(promises);
     }
+  }
+
+  /** Resolves once every transport has drained its pending work. */
+  async flush(): Promise<void> {
+    await Promise.all(Array.from(this.inFlight));
+
+    const flushes = this.getTransports()
+      .filter((transport): transport is Transport & { flush: () => void | Promise<void> } =>
+        typeof transport.flush === 'function')
+      .map(transport => Promise.resolve(transport.flush()).catch(error =>
+        this.report(error, transport.name)));
+
+    await Promise.all(flushes);
+  }
+
+  private track<T>(promise: Promise<T>): Promise<T> {
+    this.inFlight.add(promise);
+    void promise.finally(() => this.inFlight.delete(promise));
+    return promise;
+  }
+
+  private report(error: unknown, transportName: string, onError?: LogErrorHandler): void {
+    if (onError) {
+      onError(error, transportName);
+      return;
+    }
+    console.error(`Plip: transport "${transportName}" failed:`, error);
   }
 }

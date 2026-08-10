@@ -1,27 +1,24 @@
-// src/transports/browser.ts
-
 import type { BrowserTransportConfig } from '../types/transport.js';
 import type { FormattedLogEntry } from '../types/config.js';
 import { BaseTransport } from '../core/transport.js';
-import { JsonFormatter } from '../formatters/json.js';
+
+interface StoredLogEntry {
+  timestamp: string;
+  level: string;
+  message: string;
+  context?: Record<string, any>;
+  requestId?: string;
+}
+
+const DEFAULT_STORAGE_KEY = 'plip-logs';
+const DEFAULT_MAX_STORAGE_SIZE = 1024 * 1024;
 
 export class BrowserTransport extends BaseTransport {
-  private formatter: JsonFormatter;
   private storage: Storage | null = null;
 
   constructor(config: BrowserTransportConfig) {
     super(config);
-    
-    this.formatter = new JsonFormatter({
-      includeTimestamp: true,
-      includeLevel: true,
-      includeMessage: true,
-      includeContext: true,
-      includeRequestId: true,
-      pretty: false,
-    });
 
-    // Initialize storage if in browser environment
     if (typeof globalThis !== 'undefined' && 'localStorage' in globalThis && config.useLocalStorage) {
       this.storage = (globalThis as any).localStorage;
     }
@@ -29,8 +26,7 @@ export class BrowserTransport extends BaseTransport {
 
   log(entry: FormattedLogEntry): void {
     const config = this.config as BrowserTransportConfig;
-    
-    // Enhanced console logging with grouping
+
     if (config.enableConsoleGroup && entry.context && Object.keys(entry.context).length > 0) {
       console.group(`${entry.level.toUpperCase()}: ${entry.message}`);
       console.log('Context:', entry.context);
@@ -42,7 +38,6 @@ export class BrowserTransport extends BaseTransport {
       console.log(entry.formattedMessage);
     }
 
-    // Store in localStorage if enabled
     if (this.storage && config.useLocalStorage) {
       this.storeInLocalStorage(entry, config);
     }
@@ -51,66 +46,62 @@ export class BrowserTransport extends BaseTransport {
   private storeInLocalStorage(entry: FormattedLogEntry, config: BrowserTransportConfig): void {
     if (!this.storage) return;
 
-    const storageKey = config.storageKey || 'plip-logs';
-    const maxSize = config.maxStorageSize || 1024 * 1024; // 1MB default
-    
+    const storageKey = config.storageKey || DEFAULT_STORAGE_KEY;
+    const maxSize = config.maxStorageSize || DEFAULT_MAX_STORAGE_SIZE;
+
     try {
-      // Get existing logs
-      const existingLogs = this.storage.getItem(storageKey);
-      const logs = existingLogs ? JSON.parse(existingLogs) : [];
-      
-      // Add new log entry
-      const logEntry = {
+      const existing = this.storage.getItem(storageKey);
+      const logs: StoredLogEntry[] = existing ? JSON.parse(existing) : [];
+
+      logs.push({
         timestamp: entry.timestamp.toISOString(),
         level: entry.level,
         message: entry.message,
         context: entry.context,
         requestId: entry.requestId,
-      };
-      
-      logs.push(logEntry);
-      
-      // Check size and trim if necessary
-      let logsString = JSON.stringify(logs);
-      while (logsString.length > maxSize && logs.length > 0) {
-        logs.shift(); // Remove oldest log
-        logsString = JSON.stringify(logs);
+      });
+
+      // Estimate each entry's serialized cost once and drop the oldest until
+      // the budget is met, instead of re-stringifying the whole array per drop.
+      const sizes = logs.map(log => JSON.stringify(log).length + 1);
+      let total = sizes.reduce((sum, size) => sum + size, 0) + 1;
+      let start = 0;
+      while (total > maxSize && start < logs.length - 1) {
+        total -= sizes[start]!;
+        start++;
       }
-      
-      this.storage.setItem(storageKey, logsString);
+
+      this.storage.setItem(storageKey, JSON.stringify(start > 0 ? logs.slice(start) : logs));
     } catch (error) {
-      // Storage might be full or disabled
-      console.warn('BrowserTransport: Failed to store log in localStorage:', error);
+      this.reportError(error);
     }
   }
 
-  // Method to retrieve stored logs
-  getLogs(): any[] {
+  getLogs(): StoredLogEntry[] {
     if (!this.storage) return [];
-    
+
     const config = this.config as BrowserTransportConfig;
-    const storageKey = config.storageKey || 'plip-logs';
-    
+    const storageKey = config.storageKey || DEFAULT_STORAGE_KEY;
+
     try {
       const logs = this.storage.getItem(storageKey);
       return logs ? JSON.parse(logs) : [];
     } catch (error) {
-      console.warn('BrowserTransport: Failed to retrieve logs from localStorage:', error);
+      this.reportError(error);
       return [];
     }
   }
 
-  // Method to clear stored logs
   clearLogs(): void {
     if (!this.storage) return;
-    
+
     const config = this.config as BrowserTransportConfig;
-    const storageKey = config.storageKey || 'plip-logs';
-    
+    const storageKey = config.storageKey || DEFAULT_STORAGE_KEY;
+
     try {
       this.storage.removeItem(storageKey);
     } catch (error) {
-      console.warn('BrowserTransport: Failed to clear logs from localStorage:', error);
+      this.reportError(error);
     }
   }
 }
