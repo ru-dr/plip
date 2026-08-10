@@ -38,3 +38,7 @@ docs/.vitepress/cache
 
 # Vercel
 .vercel
+# docs copied into the npm package at build time
+packages/npm/README.md
+packages/npm/LICENSE
+packages/npm/CHANGELOG.md
