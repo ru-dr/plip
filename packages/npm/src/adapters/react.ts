@@ -1,6 +1,4 @@
-// src/adapters/react.ts
-
-import type { Logger } from '../types/logger.js';
+import type { Logger, LogTimer } from '../types/logger.js';
 
 export interface ReactLoggerOptions {
   includeComponentName?: boolean;
@@ -24,7 +22,6 @@ export class ReactAdapter {
     };
   }
 
-  // Hook for component logging
   useLogger(componentName?: string, props?: Record<string, any>): Logger {
     if (!this.options.includeComponentName && !this.options.includeProps) {
       return this.logger;
@@ -43,7 +40,6 @@ export class ReactAdapter {
     return this.logger.withContext(context);
   }
 
-  // Error boundary integration
   withErrorBoundary(componentName: string) {
     return {
       onError: (error: Error, errorInfo: { componentStack: string }) => {
@@ -57,7 +53,6 @@ export class ReactAdapter {
     };
   }
 
-  // Component lifecycle logging
   withLifecycle(componentName: string) {
     if (!this.options.logLifecycle) {
       return {};
@@ -67,7 +62,7 @@ export class ReactAdapter {
 
     return {
       onMount: (props?: Record<string, any>) => {
-        componentLogger.debug(`Component mounted: ${componentName}`, 
+        componentLogger.debug(`Component mounted: ${componentName}`,
           this.options.includeProps && props ? { props: this.sanitizeProps(props) } : {}
         );
       },
@@ -87,18 +82,12 @@ export class ReactAdapter {
     };
   }
 
-  // Performance tracking for components
   withPerformance(componentName: string) {
     return {
       startRender: () => {
         return this.logger.startTimer(`${componentName}-render`);
       },
-      endRender: (timer: any, props?: Record<string, any>) => {
-        const context: Record<string, any> = { component: componentName };
-        if (this.options.includeProps && props) {
-          context.props = this.sanitizeProps(props);
-        }
-        
+      endRender: (timer: LogTimer) => {
         timer.end(`Component ${componentName} render completed`);
       },
     };
@@ -114,7 +103,6 @@ export class ReactAdapter {
       } else if (typeof value === 'function') {
         sanitized[key] = '[Function]';
       } else if (value && typeof value === 'object') {
-        // Avoid deep serialization of complex objects
         sanitized[key] = '[Object]';
       } else {
         sanitized[key] = value;
@@ -125,21 +113,20 @@ export class ReactAdapter {
   }
 }
 
-// Hook factory for easier integration
 export function createReactLogger(logger: Logger, options?: ReactLoggerOptions) {
   const adapter = new ReactAdapter(logger, options);
-  
+
   return {
-    useLogger: (componentName?: string, props?: Record<string, any>) => 
+    useLogger: (componentName?: string, props?: Record<string, any>) =>
       adapter.useLogger(componentName, props),
-    
-    withErrorBoundary: (componentName: string) => 
+
+    withErrorBoundary: (componentName: string) =>
       adapter.withErrorBoundary(componentName),
-    
-    withLifecycle: (componentName: string) => 
+
+    withLifecycle: (componentName: string) =>
       adapter.withLifecycle(componentName),
-    
-    withPerformance: (componentName: string) => 
+
+    withPerformance: (componentName: string) =>
       adapter.withPerformance(componentName),
   };
 }

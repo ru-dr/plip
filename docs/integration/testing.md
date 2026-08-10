@@ -57,13 +57,14 @@ module.exports = {
 
 ```typescript
 // src/test/setup.ts
-import { Logger } from '@ru-dr/plip'
+import { createPlip, type LogLevel } from '@ru-dr/plip'
 
 // Configure logger for testing
-const testLogger = new Logger({
-  level: process.env.TEST_LOG_LEVEL || 'error', // Only show errors by default
-  timestamp: true,
-  colorize: false // Disable colors in test output
+const testLogger = createPlip({
+  // Only show errors by default (Plip does not read this variable itself)
+  enabledLevels: (process.env.TEST_LOG_LEVELS?.split(',') as LogLevel[]) ?? ['error'],
+  enableTimestamp: true,
+  enableColors: false // Disable colors in test output
 })
 
 // Make logger available globally in tests
@@ -86,11 +87,11 @@ if (!process.env.ENABLE_TEST_LOGS) {
 ```typescript
 // src/services/__tests__/user.service.test.ts
 import { UserService } from '../user.service'
-import { Logger } from '@ru-dr/plip'
+import { createPlip, type Logger } from '@ru-dr/plip'
 
-// Mock the logger
+// Mock the logger factory
 jest.mock('@ru-dr/plip')
-const MockedLogger = Logger as jest.MockedClass<typeof Logger>
+const mockedCreatePlip = createPlip as jest.MockedFunction<typeof createPlip>
 
 describe('UserService', () => {
   let userService: UserService
@@ -105,8 +106,8 @@ describe('UserService', () => {
       debug: jest.fn()
     } as any
 
-    // Mock the Logger constructor
-    MockedLogger.mockImplementation(() => mockLogger)
+    // Make createPlip() return the mock
+    mockedCreatePlip.mockReturnValue(mockLogger)
 
     userService = new UserService()
   })
@@ -159,17 +160,17 @@ describe('UserService', () => {
 // src/test/integration/api.test.ts
 import request from 'supertest'
 import { app } from '../../app'
-import { Logger } from '@ru-dr/plip'
+import { createPlip, type Logger } from '@ru-dr/plip'
 
 describe('API Integration Tests', () => {
   let logger: Logger
 
   beforeAll(() => {
     // Use real logger for integration tests with debug level
-    logger = new Logger({
-      level: 'debug',
-      timestamp: true,
-      colorize: false
+    logger = createPlip({
+      enabledLevels: ['debug', 'info', 'success', 'warn', 'error'],
+      enableTimestamp: true,
+      enableColors: false
     })
   })
 
@@ -217,7 +218,7 @@ export default defineConfig({
 
 ```typescript
 // src/test/utils.ts
-import { Logger } from '@ru-dr/plip'
+import { createPlip, type Logger } from '@ru-dr/plip'
 
 export class TestLogger {
   private logs: Array<{
@@ -230,10 +231,10 @@ export class TestLogger {
   private logger: Logger
 
   constructor() {
-    this.logger = new Logger({
-      level: 'debug',
-      timestamp: true,
-      colorize: false
+    this.logger = createPlip({
+      enabledLevels: ['debug', 'info', 'success', 'warn', 'error'],
+      enableTimestamp: true,
+      enableColors: false
     })
 
     // Override logger methods to capture logs
@@ -354,23 +355,23 @@ describe('UserService', () => {
 
 ```typescript
 // src/config/test-logger.config.ts
-import { Logger } from '@ru-dr/plip'
+import { createPlip, type Logger, type LogLevel } from '@ru-dr/plip'
 
 export function createTestLogger(options?: {
-  level?: string
+  levels?: LogLevel[]
   enableConsole?: boolean
   captureOutput?: boolean
 }): Logger {
   const {
-    level = process.env.TEST_LOG_LEVEL || 'error',
+    levels = (process.env.TEST_LOG_LEVELS?.split(',') as LogLevel[]) ?? ['error'],
     enableConsole = process.env.ENABLE_TEST_LOGS === 'true',
     captureOutput = false
   } = options || {}
 
-  const logger = new Logger({
-    level,
-    timestamp: true,
-    colorize: false
+  const logger = createPlip({
+    enabledLevels: levels,
+    enableTimestamp: true,
+    enableColors: false
   })
 
   if (!enableConsole && !captureOutput) {
@@ -392,16 +393,16 @@ export const testLogger = createTestLogger()
 
 ```typescript
 // src/test/database.test.ts
-import { Logger } from '@ru-dr/plip'
+import { createPlip, type Logger } from '@ru-dr/plip'
 import { setupTestDatabase, teardownTestDatabase } from './db-setup'
 
 describe('Database Operations', () => {
   let logger: Logger
 
   beforeAll(async () => {
-    logger = new Logger({
-      level: 'debug',
-      timestamp: true
+    logger = createPlip({
+      enabledLevels: ['debug', 'info', 'success', 'warn', 'error'],
+      enableTimestamp: true
     })
 
     logger.info('Setting up test database')
@@ -431,7 +432,7 @@ describe('Database Operations', () => {
 
 ```typescript
 // src/test/performance/load.test.ts
-import { Logger } from '@ru-dr/plip'
+import { createPlip, type Logger } from '@ru-dr/plip'
 
 class PerformanceLogger {
   private logger: Logger
@@ -443,9 +444,9 @@ class PerformanceLogger {
   }
 
   constructor() {
-    this.logger = new Logger({
-      level: 'info',
-      timestamp: true
+    this.logger = createPlip({
+      enabledLevels: ['info', 'success', 'warn', 'error'],
+      enableTimestamp: true
     })
 
     this.metrics = {
@@ -533,7 +534,7 @@ describe('Performance Tests', () => {
 
 ```typescript
 // src/test/debug-helpers.ts
-import { Logger } from '@ru-dr/plip'
+import { createPlip, type Logger } from '@ru-dr/plip'
 
 export class TestDebugger {
   private logger: Logger
@@ -544,10 +545,10 @@ export class TestDebugger {
   }
 
   constructor() {
-    this.logger = new Logger({
-      level: 'debug',
-      timestamp: true,
-      colorize: true
+    this.logger = createPlip({
+      enabledLevels: ['debug', 'info', 'success', 'warn', 'error'],
+      enableTimestamp: true,
+      enableColors: true
     })
 
     this.testContext = {
@@ -561,7 +562,7 @@ export class TestDebugger {
     this.testContext.startTime = Date.now()
     this.testContext.steps = []
 
-    this.logger.info(`🧪 Starting test: ${testName}`)
+    this.logger.info(`Starting test: ${testName}`)
   }
 
   step(stepName: string, data?: any): void {
@@ -573,19 +574,19 @@ export class TestDebugger {
 
     this.testContext.steps.push(step)
 
-    this.logger.debug(`📝 Test step: ${stepName}`, data)
+    this.logger.debug(`Test step: ${stepName}`, data)
   }
 
   endTest(success: boolean): void {
     const duration = Date.now() - this.testContext.startTime
 
     if (success) {
-      this.logger.info(`✅ Test passed: ${this.testContext.testName}`, {
+      this.logger.info(`Test passed: ${this.testContext.testName}`, {
         duration: `${duration}ms`,
         steps: this.testContext.steps.length
       })
     } else {
-      this.logger.error(`❌ Test failed: ${this.testContext.testName}`, {
+      this.logger.error(`Test failed: ${this.testContext.testName}`, {
         duration: `${duration}ms`,
         steps: this.testContext.steps,
         context: this.getDebugContext()
@@ -655,7 +656,7 @@ describe('Complex Workflow', () => {
 
 ```typescript
 // src/config/ci-logger.ts
-import { Logger } from '@ru-dr/plip'
+import { createPlip, type Logger } from '@ru-dr/plip'
 
 export function createCILogger(): Logger {
   // Detect CI environment
@@ -663,11 +664,13 @@ export function createCILogger(): Logger {
                process.env.GITHUB_ACTIONS === 'true' ||
                process.env.TRAVIS === 'true'
 
-  return new Logger({
-    level: isCI ? 'error' : 'debug',
-    timestamp: true,
-    colorize: !isCI, // Disable colors in CI
-    format: isCI ? 'json' : 'pretty' // Use JSON format in CI for better parsing
+  return createPlip({
+    enabledLevels: isCI
+      ? ['error']
+      : ['debug', 'info', 'success', 'warn', 'error'],
+    enableTimestamp: true,
+    enableColors: !isCI, // Disable colors in CI
+    enableStructuredOutput: isCI // One JSON object per line in CI for easier parsing
   })
 }
 ```
@@ -698,7 +701,7 @@ jobs:
       - name: Run tests with detailed logging
         run: npm test
         env:
-          TEST_LOG_LEVEL: info
+          TEST_LOG_LEVELS: info,success,warn,error
           ENABLE_TEST_LOGS: true
           CI: true
 ```

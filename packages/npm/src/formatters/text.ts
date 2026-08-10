@@ -1,5 +1,3 @@
-// src/formatters/text.ts
-
 import type { FormattedLogEntry } from '../types/config.js';
 
 export interface TextFormatterOptions {
@@ -38,7 +36,9 @@ export class TextFormatter {
       parts.push(`[${entry.requestId}]`);
     }
 
-    parts.push(entry.formattedMessage);
+    // Use the raw message: formattedMessage carries ANSI color codes, which
+    // must not end up in log files or other plain-text sinks.
+    parts.push(entry.message);
 
     return parts.join(' ');
   }

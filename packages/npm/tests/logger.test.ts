@@ -1,15 +1,7 @@
 // tests/logger.test.ts
 import { test, expect, describe, beforeEach, afterEach } from "bun:test";
-import {
-  plip,
-  createPlip,
-  createSSRLogger,
-  createCSRLogger,
-  ssrLogger,
-  csrLogger
-} from '../src/core/index.js';
-import clc from 'cli-color';
-import { hasColors } from "../src/utils/colors.js";
+import { plip, createPlip } from '../src/core/index.js';
+import { colors, hasColors } from "../src/utils/colors.js";
 
 // Mock console.log to capture output
 let consoleLogs: string[] = [];
@@ -58,15 +50,6 @@ describe("plip logger", () => {
     expect(consoleLogs).toHaveLength(0);
   });
 
-  test("can disable emojis", () => {
-    const logger = createPlip({ enableEmojis: false, devOnly: false });
-    
-    logger.info("test");
-    
-    expect(consoleLogs[0]).not.toContain("🫧");
-    expect(consoleLogs[0]).toContain("[INFO]");
-  });
-
   test("can disable colors", () => {
     const logger = createPlip({ enableColors: false, devOnly: false });
     
@@ -74,41 +57,34 @@ describe("plip logger", () => {
     
     expect(consoleLogs[0]).not.toContain("\x1b[36m");
     expect(consoleLogs[0]).toContain("[INFO]");
-  });  test("can customize theme", () => {
+  });
+
+  test("can customize theme", () => {
     const logger = createPlip({
       devOnly: false,
       theme: {
-        emojis: {
-            info: "ℹ️",
-            warn: "",
-            error: "",
-            success: "",
-            debug: "",
-            trace: "",
-            verbose: ""
-        },
         colors: {
-            info: clc.magenta,
-            warn: clc.reset,
-            error: clc.reset,
-            success: clc.reset,
-            debug: clc.reset,
-            trace: clc.reset,
-            verbose: clc.reset
+            info: colors.magenta,
+            warn: colors.dim,
+            error: colors.dim,
+            success: colors.dim,
+            debug: colors.dim,
+            trace: colors.dim,
+            verbose: colors.dim
         },        dimColors: {
-            info: (text: string) => clc.magenta(clc.blackBright(text)),
-            warn: clc.reset,
-            error: clc.reset,
-            success: clc.reset,
-            debug: clc.reset,
-            trace: clc.reset,
-            verbose: clc.reset
+            info: (text: string) => colors.magenta(colors.gray(text)),
+            warn: colors.dim,
+            error: colors.dim,
+            success: colors.dim,
+            debug: colors.dim,
+            trace: colors.dim,
+            verbose: colors.dim
         }
       }
     });
     
     logger.info("test");
-      expect(consoleLogs[0]).toContain("ℹ️");
+    expect(consoleLogs[0]).toContain("[INFO]");
     expect(hasColors(consoleLogs[0] || "")).toBe(true);
   });
 
@@ -130,7 +106,6 @@ describe("plip logger", () => {
 
   test("fluent API works", () => {
     const logger = createPlip({ devOnly: false })
-      .withEmojis(false)
       .withColors(false)
       .levels("info", "error");
     
@@ -178,11 +153,7 @@ describe("plip logger", () => {
   });
 
   test("withContext adds context to log messages", () => {
-    const logger = createPlip({ 
-      devOnly: false,
-      enableColors: false,
-      enableEmojis: false 
-    });
+    const logger = createPlip({ devOnly: false, enableColors: false });
     
     const contextLogger = logger.withContext({ 
       service: 'auth-service', 
@@ -201,11 +172,7 @@ describe("plip logger", () => {
   });
 
   test("withContext works with multiple contexts", () => {
-    const logger = createPlip({ 
-      devOnly: false,
-      enableColors: false,
-      enableEmojis: false 
-    });
+    const logger = createPlip({ devOnly: false, enableColors: false });
     
     const contextLogger = logger
       .withContext({ service: 'payment' })
@@ -225,11 +192,7 @@ describe("plip logger", () => {
   });
 
   test("withContext works without additional data", () => {
-    const logger = createPlip({ 
-      devOnly: false,
-      enableColors: false,
-      enableEmojis: false 
-    });
+    const logger = createPlip({ devOnly: false, enableColors: false });
     
     const contextLogger = logger.withContext({ 
       requestId: 'req-456' 
@@ -245,7 +208,6 @@ describe("plip logger", () => {
 
   test("withContext chains with other configuration methods", () => {
     const logger = createPlip({ devOnly: false })
-      .withEmojis(false)
       .withColors(false)
       .withContext({ module: 'test-module' });
     
@@ -260,11 +222,7 @@ describe("plip logger", () => {
   });
 
   test("context is preserved across configure calls", () => {
-    const logger = createPlip({ 
-      devOnly: false,
-      enableColors: false,
-      enableEmojis: false 
-    });
+    const logger = createPlip({ devOnly: false, enableColors: false });
     
     const contextLogger = logger
       .withContext({ service: 'api' })

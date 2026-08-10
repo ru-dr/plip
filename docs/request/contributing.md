@@ -4,22 +4,22 @@ Welcome to the Plip Logger community! We're excited to have you contribute to ma
 
 ## Ways to Contribute
 
-### 🐛 Bug Reports
+### Bug Reports
 Help us identify and fix issues by reporting bugs you encounter.
 
-### 💡 Feature Requests  
+### Feature Requests  
 Share ideas for new features or improvements to existing functionality.
 
-### 📝 Documentation
+### Documentation
 Improve our guides, API references, and examples.
 
-### 🔧 Code Contributions
+### Code Contributions
 Submit bug fixes, feature implementations, or performance improvements.
 
-### 🧪 Testing
+### Testing
 Help test new features, write test cases, or improve test coverage.
 
-### 💬 Community Support
+### Community Support
 Help other users in discussions, issues, and community forums.
 
 ## Getting Started
@@ -43,51 +43,56 @@ Help other users in discussions, issues, and community forums.
 
 2. **Install Dependencies**
    ```bash
-   npm install
-   # or
-   yarn install
-   # or  
-   pnpm install
-   # or
    bun install
    ```
 
 3. **Run Tests**
    ```bash
-   npm test
+   bun test
    ```
 
-4. **Build the Project**
+4. **Lint and Type-check**
    ```bash
-   npm run build
+   bun run lint
+   bun run typecheck
    ```
 
-5. **Start Development**
+5. **Build the Project**
    ```bash
-   npm run dev
+   bun run build
+   ```
+
+6. **Start Development**
+   ```bash
+   bun run dev
    ```
 
 ## Project Structure
 
 ```
 plip/
-├── src/              # Source code
-│   ├── lib/          # Core library code
-│   ├── utils/        # Utility functions
-│   └── index.ts      # Main entry point
-├── tests/            # Test files
-├── docs/             # Documentation
-├── examples/         # Example applications
-└── scripts/          # Build and utility scripts
+├── packages/npm/
+│   ├── src/              # Source code
+│   │   ├── core/         # Logger, config, factory
+│   │   ├── transports/   # Console, file, browser, remote transports
+│   │   ├── formatters/   # JSON and text formatters
+│   │   ├── adapters/     # Framework adapters (React, Next.js)
+│   │   ├── types/        # TypeScript type definitions
+│   │   ├── utils/        # Utility functions
+│   │   └── index.ts      # Main entry point
+│   └── tests/            # Test files
+└── docs/                 # Documentation
 ```
 
 ### Key Files
 
-- `src/lib/logger.ts` - Main logger implementation
-- `src/lib/config.ts` - Configuration handling
-- `src/utils/colors.ts` - Color management
-- `src/utils/env.ts` - Environment detection
-- `tests/` - Test suites
+- `packages/npm/src/core/logger.ts` - Main logger implementation
+- `packages/npm/src/core/config.ts` - Configuration handling
+- `packages/npm/src/utils/colors.ts` - Color management
+- `packages/npm/src/utils/env.ts` - Environment detection
+- `packages/npm/tests/` - Test suites
+- `packages/npm/eslint.config.mjs` - ESLint 9 flat config
+- `.github/workflows/ci.yml` - CI pipeline
 
 ## Development Workflow
 
@@ -112,16 +117,20 @@ git checkout -b fix/bug-description
 
 ```bash
 # Run all tests
-npm test
+bun test
 
 # Run specific test files
-npm test -- logger.test.ts
+bun test logger.test.ts
 
 # Run tests in watch mode
-npm run test:watch
+bun test --watch
 
 # Check test coverage
-npm run test:coverage
+bun run test:coverage
+
+# Lint and type-check
+bun run lint
+bun run typecheck
 ```
 
 ### 4. Commit Your Changes
@@ -130,7 +139,7 @@ We use [Conventional Commits](https://conventionalcommits.org/) for commit messa
 
 ```bash
 # Feature commits
-git commit -m "feat: add custom emoji configuration"
+git commit -m "feat: add custom color configuration"
 
 # Bug fix commits  
 git commit -m "fix: resolve color detection on Windows"
@@ -166,22 +175,21 @@ git push origin feature/awesome-new-feature
 ### TypeScript Guidelines
 
 ```typescript
-// ✅ Use TypeScript interfaces
+// Use TypeScript interfaces
 interface LoggerOptions {
-  level: LogLevel;
-  colors: boolean;
-  emojis: boolean;
+  enabledLevels: LogLevel[];
+  enableColors: boolean;
 }
 
-// ✅ Use proper typing
-function createLogger(options: LoggerOptions): PlipLogger {
+// Use proper typing
+function buildLogger(options: LoggerOptions): Logger {
   // Implementation
 }
 
-// ✅ Use descriptive variable names
-const userAuthenticationLogger = plip.withPrefix('[AUTH]');
+// Use descriptive variable names
+const userAuthenticationLogger = plip.withContext({ scope: 'AUTH' });
 
-// ❌ Avoid any types
+// Avoid any types
 function badFunction(data: any): any {
   return data;
 }
@@ -189,24 +197,29 @@ function badFunction(data: any): any {
 
 ### Code Style
 
-We use ESLint and Prettier for consistent code formatting:
+Linting is handled by ESLint 9 using the flat config at
+`packages/npm/eslint.config.mjs`. Keep the style consistent with the surrounding
+code and make sure the code lints and type-checks cleanly:
 
 ```bash
-# Check formatting
-npm run lint
+# Lint
+bun run lint
 
-# Fix formatting issues
-npm run lint:fix
+# Lint and auto-fix what can be fixed
+bun run lint:fix
 
-# Format code
-npm run format
+# Type-check only
+bun run typecheck
+
+# Build (runs build:esm, build:cjs and build:finalize)
+bun run build
 ```
 
 ### Best Practices
 
 #### File Organization
 ```typescript
-// ✅ Good file structure
+// Good file structure
 // 1. Imports
 import { PlipConfig } from './types';
 import { detectColors } from '../utils/colors';
@@ -220,8 +233,8 @@ interface LogEntry {
 
 // 3. Constants
 const DEFAULT_CONFIG: PlipConfig = {
-  level: 'info',
-  colors: true
+  enabledLevels: ['info', 'success', 'warn', 'error'],
+  enableColors: true
 };
 
 // 4. Implementation
@@ -232,29 +245,32 @@ export class PlipLogger {
 
 #### Error Handling
 ```typescript
-// ✅ Proper error handling
+// Proper error handling
 try {
   const result = riskyOperation();
   return result;
 } catch (error) {
-  logger.error('Operation failed', { error: error.message });
-  throw new PlipError('Failed to process', { cause: error });
+  logger.error('Operation failed', error);
+  throw new Error('Failed to process', { cause: error });
 }
 ```
 
 #### Testing
 ```typescript
-// ✅ Good test structure
+// Good test structure
+import { describe, it, expect, beforeEach, spyOn } from 'bun:test';
+import { createPlip } from '../src/index';
+
 describe('PlipLogger', () => {
-  let logger: PlipLogger;
+  let logger: ReturnType<typeof createPlip>;
 
   beforeEach(() => {
-    logger = new PlipLogger();
+    logger = createPlip({ enabledLevels: ['info'] });
   });
 
   describe('info method', () => {
     it('should log info messages with correct format', () => {
-      const spy = jest.spyOn(console, 'log');
+      const spy = spyOn(console, 'log');
       logger.info('test message');
       
       expect(spy).toHaveBeenCalledWith(
@@ -269,41 +285,42 @@ describe('PlipLogger', () => {
 
 ### Test Structure
 
-We use Jest for testing. Tests should follow this structure:
+We use [Bun's built-in test runner](https://bun.sh/docs/cli/test). The suite
+lives in `packages/npm/tests/`, with one file per area: `logger.test.ts`,
+`colors.test.ts`, `formatter.test.ts`, `env.test.ts`, `levels-and-errors.test.ts`,
+`transport.test.ts`, the per-transport files (`file-transport.test.ts`,
+`browser-transport.test.ts`, `remote-transport.test.ts`), `adapters.test.ts`,
+`ssr-csr.test.ts`, `integration.test.ts`, `performance.test.ts` and
+`regressions.test.ts`. Add new tests to the file that matches the area you
+touched, and follow this structure:
 
 ```typescript
-// tests/logger.test.ts
-import { PlipLogger } from '../src/lib/logger';
+// packages/npm/tests/logger.test.ts
+import { describe, it, expect, spyOn } from 'bun:test';
+import { createPlip } from '../src/index';
 
 describe('PlipLogger', () => {
-  describe('constructor', () => {
-    it('should create logger with default config', () => {
-      const logger = new PlipLogger();
-      expect(logger.config.level).toBe('info');
-    });
+  describe('configuration', () => {
+    it('should only log the levels that are enabled', () => {
+      const logger = createPlip({ enabledLevels: ['error'] });
+      const spy = spyOn(console, 'log');
 
-    it('should accept custom configuration', () => {
-      const logger = new PlipLogger({ level: 'debug' });
-      expect(logger.config.level).toBe('debug');
+      logger.info('should not appear');
+      expect(spy).not.toHaveBeenCalled();
+
+      spy.mockRestore();
     });
   });
 
   describe('log methods', () => {
-    let logger: PlipLogger;
-    let consoleSpy: jest.SpyInstance;
-
-    beforeEach(() => {
-      logger = new PlipLogger();
-      consoleSpy = jest.spyOn(console, 'log').mockImplementation();
-    });
-
-    afterEach(() => {
-      consoleSpy.mockRestore();
-    });
-
     it('should log info messages', () => {
+      const logger = createPlip({ enabledLevels: ['info'] });
+      const spy = spyOn(console, 'log');
+
       logger.info('test message');
-      expect(consoleSpy).toHaveBeenCalled();
+      expect(spy).toHaveBeenCalled();
+
+      spy.mockRestore();
     });
   });
 });
@@ -319,9 +336,7 @@ Aim for high test coverage, especially for:
 
 ```bash
 # Check coverage
-npm run test:coverage
-
-# Target: >90% coverage for src/ directory
+bun run test:coverage
 ```
 
 ## Documentation
@@ -334,20 +349,19 @@ Update JSDoc comments for all public APIs:
 /**
  * Creates a new logger instance with custom configuration.
  * 
- * @param options - Configuration options for the logger
- * @returns A new PlipLogger instance
+ * @param config - Configuration options for the logger
+ * @returns A new Logger instance
  * 
  * @example
  * ```typescript
- * const logger = createLogger({
- *   level: 'debug',
- *   colors: true,
- *   prefix: '[API]'
+ * const logger = createPlip({
+ *   enabledLevels: ['debug', 'info', 'warn', 'error'],
+ *   enableColors: true
  * });
  * ```
  */
-export function createLogger(options?: PlipConfig): PlipLogger {
-  return new PlipLogger(options);
+export function createPlip(config?: Partial<PlipConfig>): Logger {
+  return new PlipLogger(config);
 }
 ```
 
@@ -403,9 +417,27 @@ Available options:
 
 ## Pull Request Guidelines
 
+Every pull request must pass CI before it can be merged.
+
+### Continuous Integration
+
+CI is defined in `.github/workflows/ci.yml` and runs on every push to `main` and
+on every pull request. It performs:
+
+- `bun run typecheck`
+- `bun run lint`
+- `bun test --coverage`
+- `bun run build`
+- a smoke test that requires the built CJS entrypoint and imports the ESM one
+- a documentation build (`bun run docs:build`)
+
+Run `bun run typecheck`, `bun run lint`, `bun test` and `bun run build` locally
+before pushing to catch failures early.
+
 ### Before Submitting
 
 - [ ] All tests pass
+- [ ] `bun run lint` and `bun run typecheck` are clean
 - [ ] Code follows style guidelines
 - [ ] Documentation is updated
 - [ ] Changelog is updated
@@ -437,7 +469,7 @@ Brief description of changes and motivation.
 
 ### Review Process
 
-1. **Automated Checks**: CI runs tests and linting
+1. **Automated Checks**: CI runs typecheck, lint, tests, build and the docs build
 2. **Community Review**: Other contributors may review
 3. **Maintainer Review**: Core maintainers provide feedback
 4. **Approval**: At least one maintainer approval required
@@ -520,11 +552,11 @@ All contributors are recognized in:
 
 Ready to contribute? Here's what to do:
 
-1. **🍴 [Fork the Repository](https://github.com/ru-dr/plip/fork)**
-2. **📥 [Clone and Setup](#development-setup)**
-3. **🔍 [Find an Issue](https://github.com/ru-dr/plip/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)**
-4. **💻 [Start Coding](#development-workflow)**
+1. **[Fork the Repository](https://github.com/ru-dr/plip/fork)**
+2. **[Clone and Setup](#development-setup)**
+3. **[Find an Issue](https://github.com/ru-dr/plip/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)**
+4. **[Start Coding](#development-workflow)**
 
 Questions? Feel free to ask in [GitHub Discussions](https://github.com/ru-dr/plip/discussions)!
 
-Thank you for contributing to Plip Logger! 🎉
+Thank you for contributing to Plip Logger!

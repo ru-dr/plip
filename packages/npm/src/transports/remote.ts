@@ -1,144 +1,128 @@
-// src/transports/remote.ts
-
 import type { RemoteTransportConfig } from '../types/transport.js';
 import type { FormattedLogEntry } from '../types/config.js';
 import { BaseTransport } from '../core/transport.js';
-import { JsonFormatter } from '../formatters/json.js';
+
+const DEFAULT_BATCH_SIZE = 10;
+const DEFAULT_FLUSH_INTERVAL = 5000;
+const MAX_BUFFERED_LOGS = 1000;
+
+interface RemoteLogEntry {
+  timestamp: string;
+  level: string;
+  message: string;
+  context?: Record<string, any>;
+  requestId?: string;
+}
 
 interface LogBatch {
-  logs: any[];
+  logs: RemoteLogEntry[];
   timestamp: number;
 }
 
 export class RemoteTransport extends BaseTransport {
-  private formatter: JsonFormatter;
-  private batch: any[] = [];
-  private flushTimer: NodeJS.Timeout | number | null = null;
+  private batch: RemoteLogEntry[] = [];
+  private flushTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(config: RemoteTransportConfig) {
     super(config);
-    
-    this.formatter = new JsonFormatter({
-      includeTimestamp: true,
-      includeLevel: true,
-      includeMessage: true,
-      includeContext: true,
-      includeRequestId: true,
-      pretty: false,
-    });
-
-    // Start flush timer
     this.startFlushTimer();
   }
 
   log(entry: FormattedLogEntry): void {
     const config = this.config as RemoteTransportConfig;
-    
-    // Add to batch
-    const logData = JSON.parse(this.formatter.format(entry));
-    this.batch.push(logData);
 
-    // Flush if batch is full
-    if (this.batch.length >= (config.batchSize || 10)) {
-      this.flush();
+    this.batch.push({
+      timestamp: entry.timestamp.toISOString(),
+      level: entry.level,
+      message: entry.message,
+      context: entry.context,
+      requestId: entry.requestId,
+    });
+
+    if (this.batch.length >= (config.batchSize || DEFAULT_BATCH_SIZE)) {
+      void this.send();
     }
   }
 
   private startFlushTimer(): void {
     const config = this.config as RemoteTransportConfig;
-    const interval = config.flushInterval || 5000; // 5 seconds default
+    const interval = config.flushInterval || DEFAULT_FLUSH_INTERVAL;
 
     this.flushTimer = setInterval(() => {
-      if (this.batch.length > 0) {
-        this.flush();
-      }
+      void this.send();
     }, interval);
+
+    // Never keep a Node process alive just to flush logs.
+    (this.flushTimer as any)?.unref?.();
   }
 
-  private async flush(): Promise<void> {
+  private async send(): Promise<void> {
     if (this.batch.length === 0) return;
 
     const config = this.config as RemoteTransportConfig;
-    const logsToSend = [...this.batch];
+    const logsToSend = this.batch;
     this.batch = [];
 
-    const payload: LogBatch = {
-      logs: logsToSend,
-      timestamp: Date.now(),
+    const payload: LogBatch = { logs: logsToSend, timestamp: Date.now() };
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...config.headers,
     };
 
+    if (config.apiKey) {
+      headers['Authorization'] = `Bearer ${config.apiKey}`;
+    }
+
+    const controller = config.timeout ? new AbortController() : null;
+    const timeoutId = controller
+      ? setTimeout(() => controller.abort(), config.timeout)
+      : null;
+
     try {
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-        ...config.headers,
-      };
-
-      if (config.apiKey) {
-        headers['Authorization'] = `Bearer ${config.apiKey}`;
-      }
-
-      const fetchOptions: RequestInit = {
+      const response = await fetch(config.url, {
         method: 'POST',
         headers,
         body: JSON.stringify(payload),
-      };
+        signal: controller?.signal,
+      });
 
-      if (config.timeout) {
-        // Add timeout using AbortController
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), config.timeout);
-        
-        fetchOptions.signal = controller.signal;
-        
-        try {
-          const response = await fetch(config.url, fetchOptions);
-          clearTimeout(timeoutId);
-          
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-          }
-        } catch (error) {
-          clearTimeout(timeoutId);
-          throw error;
-        }
-      } else {
-        const response = await fetch(config.url, fetchOptions);
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
-      
     } catch (error) {
-      // Re-add failed logs to the beginning of the batch for retry
+      // Requeue ahead of newer entries so ordering survives a retry, then cap
+      // the buffer so a persistently failing endpoint cannot leak memory.
       this.batch.unshift(...logsToSend);
-      console.error('RemoteTransport: Failed to send logs:', error);
-      
-      // Prevent infinite growth of failed logs
-      if (this.batch.length > 1000) {
-        this.batch = this.batch.slice(-500); // Keep only the last 500 logs
+      if (this.batch.length > MAX_BUFFERED_LOGS) {
+        this.batch = this.batch.slice(-MAX_BUFFERED_LOGS);
       }
+
+      this.reportError(error);
+    } finally {
+      if (timeoutId) clearTimeout(timeoutId);
     }
   }
 
   async close(): Promise<void> {
-    // Clear the flush timer
     if (this.flushTimer) {
-      clearInterval(this.flushTimer as NodeJS.Timeout);
+      clearInterval(this.flushTimer);
       this.flushTimer = null;
     }
 
-    // Flush any remaining logs
-    if (this.batch.length > 0) {
-      await this.flush();
-    }
+    await this.send();
   }
 
-  // Manual flush method
+  /** @deprecated Use `flush()`. */
   async forceFlush(): Promise<void> {
-    await this.flush();
+    await this.send();
   }
 
-  // Get the current batch size
+  /** Called by `Logger.flush()`. */
+  async flush(): Promise<void> {
+    await this.send();
+  }
+
   getBatchSize(): number {
     return this.batch.length;
   }

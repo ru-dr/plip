@@ -6,15 +6,15 @@
 import { plip, createSSRLogger, createCSRLogger, ssrLogger, csrLogger } from '@ru-dr/plip';
 
 // Default logger (CSR optimized)
-plip.info("Hello world!"); // 🫧 [INFO] Hello world!
+plip.info("Hello world!"); // [INFO] Hello world!
 
 // Pre-configured SSR logger (clean server logs)
 ssrLogger.info("Server started", { port: 3000 }); 
-// Output: [2024-01-15T10:30:00.000Z] [INFO] Server started {"port":3000}
+// Output: 2024-01-15T10:30:00.000Z [INFO] Server started {"port":3000}
 
 // Pre-configured CSR logger (rich browser experience)
 csrLogger.success("User logged in", { userId: 123 }); 
-// Output: ✅ [SUCCESS] User logged in {"userId":123}
+// Output: [SUCCESS] User logged in {"userId":123}
 
 // Custom loggers with overrides
 const customServerLogger = createSSRLogger({
@@ -58,7 +58,7 @@ import { serverLogger } from '../../lib/loggers';
 
 export default function handler(req, res) {
   serverLogger.info("API request", { method: req.method, url: req.url });
-  // Clean server output: [2024-01-15T10:30:00.000Z] [INFO] API request {"method":"GET","url":"/api/users"}
+  // Clean server output: 2024-01-15T10:30:00.000Z [INFO] API request {"method":"GET","url":"/api/users"}
   
   try {
     const users = await getUsers();
@@ -81,31 +81,22 @@ export function UserForm() {
 
   useEffect(() => {
     clientLogger.info("UserForm component mounted");
-    // Rich browser output: 🫧 [INFO] UserForm component mounted
+    // Rich browser output: [INFO] UserForm component mounted
   }, []);
 
   const handleSubmit = async (data) => {
-    clientLogger.time('form-submission');
+    const timer = clientLogger.startTimer('form-submission');
     
     try {
       const result = await submitForm(data);
       clientLogger.success("Form submitted successfully", result);
-      // Output: ✅ [SUCCESS] Form submitted successfully {"id":"user-123"}
+      // Output: [SUCCESS] Form submitted successfully {"id":"user-123"}
     } catch (error) {
       clientLogger.error("Form submission failed", error);
-      // Output: 💥 [ERROR] Form submission failed Error: Validation failed
+      // Output: [ERROR] Form submission failed Error: Validation failed
     } finally {
-      clientLogger.timeEnd('form-submission');
-      // Output: ⏱️ [TIMER] form-submission: 245ms
-    }
-  };
-  const handleSubmit = async (data) => {
-    clientLogger.info("Form submission started"); // 🫧 [INFO] with colors
-    try {
-      await submitForm(data);
-      clientLogger.success("Form submitted successfully"); // 🎉 [SUCCESS]
-    } catch (error) {
-      clientLogger.error("Form submission failed", { error }); // 💥 [ERROR]
+      timer.end();
+      // Output: [INFO] Timer "form-submission" completed in 245.00ms
     }
   };
 }
@@ -155,7 +146,7 @@ import { logger } from './utils/logger';
 
 function App() {
   useEffect(() => {
-    logger.info("App initialized"); // 🫧 [INFO] App initialized
+    logger.info("App initialized"); // [INFO] App initialized
   }, []);
 
   const handleError = (error) => {
@@ -163,7 +154,7 @@ function App() {
       error: error.message,
       component: 'App',
       timestamp: new Date()
-    }); // 💥 [ERROR] with rich formatting
+    }); // [ERROR] with rich formatting
   };
 
   return <div>...</div>;
@@ -205,7 +196,6 @@ const apiLogger = createSSRLogger({
 
 // Custom CSR logger for specific features
 const debugLogger = createCSRLogger({
-  enableEmojis: false, // Cleaner console output
   enabledLevels: ['debug', 'trace'] // Only debug messages
 });
 ```

@@ -1,6 +1,9 @@
 # Support
 
-Need help with Plip Logger? This page provides various ways to get support, from self-service resources to community assistance and professional support options.
+Need help with Plip Logger? Plip is a small open source project maintained by
+[ru-dr](https://github.com/ru-dr). Support happens in the open, on GitHub. This
+page collects the self-service resources, the diagnostics worth running first,
+and how to ask a question that can actually be answered.
 
 ## Quick Start Resources
 
@@ -13,7 +16,7 @@ Need help with Plip Logger? This page provides various ways to get support, from
 ### Common Solutions
 - **[Best Practices](/guide/best-practices)** - Recommended patterns
 - **[Compatibility Guide](/guide/compatibility)** - Environment requirements
-- **[Error Codes](/references/errors)** - Troubleshooting reference
+- **[Errors & Troubleshooting](/references/errors)** - Diagnostic message reference
 - **[Environment Variables](/references/environment)** - Configuration options
 
 ## Self-Service Support
@@ -32,29 +35,34 @@ rm -rf node_modules package-lock.json
 npm install
 
 # Update to latest version
-npm update plip-logger
+npm update @ru-dr/plip
 ```
 
 #### Configuration Problems
 ```javascript
-// Validate your configuration
-const { validateConfig } = require('plip-logger/utils');
-const isValid = validateConfig(yourConfig);
-console.log('Config valid:', isValid);
+// Re-create the logger with an explicit configuration to isolate the problem
+const { createPlip } = require('@ru-dr/plip');
+
+const logger = createPlip({
+  enabledLevels: ['info', 'warn', 'error', 'success', 'debug'],
+  enableColors: true
+});
+
+logger.info('Configuration check');
 ```
 
 #### Performance Issues
 ```javascript
-// Enable debug mode
-const logger = new Logger({
-  debug: true,
-  logLevel: 'debug'
+// Enable every level and time a suspect operation
+const { createPlip } = require('@ru-dr/plip');
+
+const logger = createPlip({
+  enabledLevels: ['info', 'warn', 'error', 'success', 'debug', 'trace', 'verbose']
 });
 
-// Monitor performance
-logger.on('performance', (stats) => {
-  console.log('Performance stats:', stats);
-});
+const timer = logger.startTimer('suspect-operation');
+await doWork();
+timer.end('suspect-operation finished');
 ```
 
 #### File Permission Errors
@@ -69,148 +77,76 @@ chown user:group /path/to/log/file
 
 ### Diagnostic Tools
 
-#### Health Check
+#### Transport Check
 ```javascript
-const { Logger } = require('plip-logger');
+const { createPlip } = require('@ru-dr/plip');
 
-const logger = new Logger();
+const logger = createPlip();
 
-// Run health check
-logger.healthCheck().then(results => {
-  console.log('Health check results:', results);
-}).catch(error => {
-  console.error('Health check failed:', error);
+// Inspect which transports are currently attached
+console.log('Transports:', logger.getTransports().map(t => t.name));
+```
+
+#### Transport Failures
+```javascript
+const { createPlip } = require('@ru-dr/plip');
+
+// Transport errors are reported rather than swallowed - pass `onError`
+// to see exactly which transport failed
+const logger = createPlip({
+  onError: (error, transportName) => {
+    console.error(`Transport ${transportName} failed:`, error);
+  }
 });
 ```
 
-#### Configuration Validation
+#### Environment Check
 ```javascript
-const { validateEnvironment } = require('plip-logger/utils');
+const { getRuntimeEnvironment, supportsColor, isDevelopment } = require('@ru-dr/plip');
 
-// Check environment setup
-const envCheck = validateEnvironment();
-if (!envCheck.valid) {
-  console.error('Environment issues:', envCheck.errors);
-}
+console.log('Runtime:', getRuntimeEnvironment());
+console.log('Colors supported:', supportsColor());
+console.log('Development mode:', isDevelopment());
 ```
 
 #### Debug Information
 ```javascript
-const { getDebugInfo } = require('plip-logger/utils');
+const { getRuntimeEnvironment, supportsColor } = require('@ru-dr/plip');
 
-// Get comprehensive debug information
-const debugInfo = getDebugInfo();
+// Collect the details worth including in a report
+const debugInfo = {
+  plipVersion: require('@ru-dr/plip/package.json').version,
+  node: process.version,
+  platform: process.platform,
+  runtime: getRuntimeEnvironment(),
+  colors: supportsColor(),
+  nodeEnv: process.env.NODE_ENV
+};
+
 console.log('Debug info:', JSON.stringify(debugInfo, null, 2));
 ```
 
-## Community Support
+## Where to Ask
 
-### GitHub Discussions
-**Best for:** General questions, usage patterns, best practices
+Everything happens in the [plip repository](https://github.com/ru-dr/plip):
 
-[**GitHub Discussions →**](https://github.com/username/plip-logger/discussions)
+- **[GitHub Discussions](https://github.com/ru-dr/plip/discussions)** - usage
+  questions, patterns, ideas and feedback
+- **[GitHub Issues](https://github.com/ru-dr/plip/issues)** - reproducible bugs
+  and concrete feature requests
 
-**Guidelines:**
-- Search existing discussions first
-- Use clear, descriptive titles
-- Include relevant code examples
-- Be respectful and constructive
+This is a single-maintainer project, so replies arrive when time allows. A
+well-formed question gets answered much faster than a vague one, and a pull
+request is always welcome.
 
-**Categories:**
-- **General** - Usage questions and discussions
-- **Ideas** - Feature suggestions and feedback
-- **Q&A** - Specific technical questions
-- **Show and Tell** - Share your implementations
+### Asking a Good Question
 
-### Stack Overflow
-**Best for:** Specific technical questions with code examples
-
-**Tag:** `plip-logger`
-
-**Tips for good questions:**
-- Include minimal, complete, verifiable example
-- Specify your environment details
-- Show what you've tried
-- Be specific about the expected vs actual behavior
-
-### Discord Community
-**Best for:** Real-time chat, quick questions, community interaction
-
-[**Join Discord Server →**](https://discord.gg/plip-logger)
-
-**Channels:**
-- `#general` - General discussion
-- `#help` - Technical support
-- `#showcase` - Share your projects
-- `#announcements` - Updates and releases
-
-### Reddit Community
-**Best for:** Discussions, tutorials, community content
-
-[**r/PlipLogger →**](https://reddit.com/r/PlipLogger)
-
-## Professional Support
-
-### Priority Support Plans
-
-#### Starter Plan - $99/month
-- **Response Time:** 48 hours
-- **Channels:** Email, GitHub
-- **Coverage:** Business hours (9-5 EST)
-- **Includes:**
-  - Configuration review
-  - Basic troubleshooting
-  - Version upgrade assistance
-
-#### Professional Plan - $299/month
-- **Response Time:** 24 hours
-- **Channels:** Email, GitHub, Phone
-- **Coverage:** Extended hours (8-8 EST)
-- **Includes:**
-  - Performance optimization
-  - Custom integration guidance
-  - Migration assistance
-  - Monthly health check
-
-#### Enterprise Plan - $999/month
-- **Response Time:** 4 hours
-- **Channels:** All channels + Slack
-- **Coverage:** 24/7
-- **Includes:**
-  - Dedicated support engineer
-  - Custom feature development
-  - On-site training available
-  - SLA guarantees
-
-[**Contact Sales →**](mailto:sales@plip-logger.dev)
-
-### Consulting Services
-
-#### Implementation Consulting
-- **Duration:** 1-4 weeks
-- **Deliverables:**
-  - Custom configuration setup
-  - Integration implementation
-  - Performance tuning
-  - Team training
-
-#### Migration Services
-- **Duration:** 2-6 weeks
-- **Deliverables:**
-  - Migration strategy
-  - Data preservation
-  - Testing and validation
-  - Documentation
-
-#### Performance Optimization
-- **Duration:** 1-2 weeks
-- **Deliverables:**
-  - Performance audit
-  - Optimization recommendations
-  - Implementation guidance
-  - Monitoring setup
-
-[**Request Consulting →**](mailto:consulting@plip-logger.dev)
+- Search existing issues and discussions first - your question may already be answered
+- Use a clear, specific title that describes the symptom, not just "help"
+- Describe what you expected to happen and what actually happened
+- Include a minimal, runnable example rather than a large excerpt of your app
+- Show what you already tried, including any diagnostics from the section above
+- Format code and log output as code blocks so it stays readable
 
 ## Bug Reports & Feature Requests
 
@@ -220,10 +156,11 @@ For bugs and issues, please use our GitHub Issues:
 [**Report Bug →**](/request/bugs)
 
 **Include:**
-- Environment details
-- Reproduction steps
+- Environment details (Plip version, Node.js version, operating system, runtime)
+- Reproduction steps, or a minimal reproduction repository
 - Expected vs actual behavior
-- Error messages and logs
+- Error messages, stack traces and relevant log output
+- Your Plip configuration
 
 ### Feature Requests
 For new features and enhancements:
@@ -236,112 +173,38 @@ For new features and enhancements:
 - Alternative solutions considered
 - Additional context
 
-## Enterprise Support
-
-### Priority Features
-- **Dedicated Support Channel** - Direct access to engineering team
-- **Custom SLA** - Guaranteed response and resolution times
-- **Priority Bug Fixes** - Fast-track critical issues
-- **Feature Prioritization** - Influence roadmap priorities
-
-### Security Support
-- **Security Audits** - Regular security assessments
-- **Private Vulnerability Reports** - Confidential security issue handling
-- **Compliance Assistance** - Help with regulatory requirements
-- **Security Training** - Team education on secure logging
-
-### Integration Support
-- **Custom Integrations** - Specialized framework support
-- **API Extensions** - Custom API development
-- **Plugin Development** - Custom plugin creation
-- **Architecture Review** - System design consultation
-
-[**Enterprise Contact →**](mailto:enterprise@plip-logger.dev)
-
-## Response Times
-
-### Community Support
-- **GitHub Discussions:** Best effort, typically 1-3 days
-- **Stack Overflow:** Community-driven, varies
-- **Discord:** Real-time during active hours
-- **Reddit:** Community-driven, varies
-
-### Professional Support
-- **Starter:** 48 hours (business hours)
-- **Professional:** 24 hours (extended hours)
-- **Enterprise:** 4 hours (24/7)
-
-### Critical Issues
-For production-down situations:
-- **Professional/Enterprise customers:** Immediate escalation
-- **Community users:** Use GitHub Issues with "critical" label
-
-## Knowledge Base
-
-### Common Integration Patterns
+## Common Integration Patterns
 
 #### Express.js Setup
 ```javascript
 const express = require('express');
-const { expressLogger } = require('plip-logger/express');
+const { plip } = require('@ru-dr/plip');
 
 const app = express();
-app.use(expressLogger());
+
+app.use((req, res, next) => {
+  req.logger = plip.withContext({ method: req.method, url: req.url });
+  req.logger.info('Request received');
+  next();
+});
 ```
 
 #### Error Handling
 ```javascript
-logger.on('error', (error) => {
-  console.error('Logger error:', error);
-  // Fallback to console logging
+app.use((err, req, res, next) => {
+  (req.logger || plip).error('Request failed', { message: err.message, stack: err.stack });
+  res.status(500).json({ error: 'Internal Server Error' });
 });
 ```
 
 #### Performance Monitoring
 ```javascript
-logger.on('performance', (metrics) => {
-  if (metrics.avgProcessingTime > 100) {
-    console.warn('Slow logging detected');
-  }
+app.use((req, res, next) => {
+  const timer = plip.startTimer(`${req.method} ${req.url}`);
+  res.on('finish', () => timer.end(`${req.method} ${req.url} -> ${res.statusCode}`));
+  next();
 });
 ```
-
-### Video Tutorials
-- **Getting Started** (5 min) - Basic setup and first logs
-- **Configuration Deep Dive** (15 min) - Advanced configuration
-- **Framework Integration** (20 min) - Express and Fastify setup
-- **Production Deployment** (25 min) - Best practices for production
-
-[**Watch Tutorials →**](https://youtube.com/plip-logger)
-
-### Webinars
-Monthly webinars covering:
-- New feature announcements
-- Best practices deep dives
-- Q&A sessions with maintainers
-- Community showcases
-
-[**Register for Webinars →**](https://plip-logger.dev/webinars)
-
-## Contact Information
-
-### General Support
-- **Email:** support@plip-logger.dev
-- **Response Time:** 24-48 hours
-
-### Sales & Enterprise
-- **Email:** sales@plip-logger.dev
-- **Phone:** +1 (555) 123-4567
-- **Response Time:** Same day
-
-### Security Issues
-- **Email:** security@plip-logger.dev
-- **PGP Key:** [Download](https://plip-logger.dev/pgp)
-- **Response Time:** 24 hours
-
-### Media & Press
-- **Email:** press@plip-logger.dev
-- **Response Time:** 48 hours
 
 ## Contributing to Support
 
@@ -350,33 +213,16 @@ Help improve support for everyone:
 ### Documentation
 - Fix typos and unclear explanations
 - Add missing examples
-- Translate documentation
-- Create video tutorials
+- Improve the guides and API reference
 
 ### Community
 - Answer questions in discussions
 - Help newcomers get started
 - Share your implementation patterns
-- Moderate community channels
 
 ### Tools
 - Improve diagnostic utilities
-- Create debugging helpers
 - Build integration examples
-- Develop testing tools
+- Add test coverage
 
 [**Contributing Guide →**](/request/contributing)
-
-## Support Quality
-
-We measure support quality through:
-- **Response time** - How quickly we respond
-- **Resolution time** - How quickly issues are resolved
-- **Customer satisfaction** - Feedback scores
-- **First contact resolution** - Issues resolved in first response
-
-Your feedback helps us improve! Please rate your support experience and provide suggestions for improvement.
-
----
-
-**Still need help?** Don't hesitate to reach out through any of these channels. Our community and team are here to help you succeed with Plip Logger!

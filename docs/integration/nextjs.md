@@ -32,12 +32,14 @@ Create a logger instance for server-side operations:
 
 ```typescript
 // lib/logger.ts
-import { Logger } from '@ru-dr/plip'
+import { createSSRLogger } from '@ru-dr/plip'
 
-export const logger = new Logger({
-  level: process.env.NODE_ENV === 'production' ? 'warn' : 'debug',
-  timestamp: true,
-  colorize: process.env.NODE_ENV !== 'production'
+export const logger = createSSRLogger({
+  enabledLevels: process.env.NODE_ENV === 'production'
+    ? ['warn', 'error']
+    : ['debug', 'info', 'success', 'warn', 'error'],
+  enableTimestamp: true,
+  enableColors: process.env.NODE_ENV !== 'production'
 })
 ```
 
@@ -112,11 +114,11 @@ Add logging to your Next.js middleware:
 // middleware.ts
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { Logger } from '@ru-dr/plip'
+import { createPlip } from '@ru-dr/plip'
 
-const logger = new Logger({
-  level: 'info',
-  timestamp: true
+const logger = createPlip({
+  enabledLevels: ['info', 'success', 'warn', 'error'],
+  enableTimestamp: true
 })
 
 export function middleware(request: NextRequest) {
@@ -189,14 +191,14 @@ For client-side logging, create a separate logger configuration:
 
 ```typescript
 // lib/client-logger.ts
-import { Logger } from '@ru-dr/plip'
+import { createCSRLogger } from '@ru-dr/plip'
 
-export const clientLogger = new Logger({
-  level: process.env.NODE_ENV === 'production' ? 'error' : 'debug',
-  timestamp: true,
-  colorize: true,
+export const clientLogger = createCSRLogger({
+  enabledLevels: process.env.NODE_ENV === 'production'
+    ? ['error']
+    : ['debug', 'info', 'success', 'warn', 'error'],
   // Disable colors in production for better browser console readability
-  colorize: process.env.NODE_ENV !== 'production'
+  enableColors: process.env.NODE_ENV !== 'production'
 })
 ```
 
@@ -249,26 +251,28 @@ Configure different log levels for different environments:
 
 ```typescript
 // lib/logger.ts
-import { Logger } from '@ru-dr/plip'
+import { createPlip, type LogLevel } from '@ru-dr/plip'
 
-const getLogLevel = () => {
+const getLogLevels = (): LogLevel[] => {
   switch (process.env.NODE_ENV) {
     case 'production':
-      return 'warn'
+      return ['warn', 'error']
     case 'test':
-      return 'error'
+      return ['error']
     case 'development':
     default:
-      return 'debug'
+      return ['debug', 'info', 'success', 'warn', 'error']
   }
 }
 
-export const logger = new Logger({
-  level: getLogLevel(),
-  timestamp: true,
-  colorize: process.env.NODE_ENV === 'development',
+export const logger = createPlip({
+  enabledLevels: getLogLevels(),
+  enableTimestamp: true,
+  enableColors: process.env.NODE_ENV === 'development',
   // Add request ID for tracing in production
-  format: process.env.NODE_ENV === 'production' ? 'json' : 'pretty'
+  includeRequestId: process.env.NODE_ENV === 'production',
+  // Emit one JSON object per line in production
+  enableStructuredOutput: process.env.NODE_ENV === 'production'
 })
 ```
 
@@ -381,7 +385,7 @@ Implement structured logging for better log analysis:
 
 ```typescript
 // lib/structured-logger.ts
-import { Logger } from '@ru-dr/plip'
+import { createPlip, type Logger, type LogLevel } from '@ru-dr/plip'
 
 interface LogContext {
   requestId?: string
@@ -395,10 +399,11 @@ class StructuredLogger {
   private context: LogContext = {}
 
   constructor() {
-    this.logger = new Logger({
-      level: process.env.LOG_LEVEL || 'info',
-      timestamp: true,
-      format: 'json'
+    this.logger = createPlip({
+      enabledLevels: (process.env.LOG_LEVELS?.split(',') as LogLevel[]) ??
+        ['info', 'success', 'warn', 'error'],
+      enableTimestamp: true,
+      enableStructuredOutput: true
     })
   }
 
@@ -454,7 +459,8 @@ FROM node:18-alpine
 
 # Set environment variables
 ENV NODE_ENV=production
-ENV LOG_LEVEL=info
+# Read by your own logger setup code (Plip itself only reads NODE_ENV)
+ENV LOG_LEVELS=info,success,warn,error
 
 # Copy application
 WORKDIR /app

@@ -17,7 +17,7 @@ const logger = createPlip();
 app.use((req, res, next) => {
   const start = Date.now();
   
-  logger.info("🌐 Incoming request", {
+  logger.info("Incoming request", {
     method: req.method,
     url: req.url,
     userAgent: req.get('User-Agent'),
@@ -28,7 +28,7 @@ app.use((req, res, next) => {
     const duration = Date.now() - start;
     const level = res.statusCode >= 400 ? 'error' : 'success';
     
-    logger[level]("📡 Request completed", {
+    logger[level]("Request completed", {
       method: req.method,
       url: req.url,
       status: res.statusCode,
@@ -44,7 +44,7 @@ app.use((req, res, next) => {
 
 ```typescript
 app.use((err, req, res, next) => {
-  logger.error("💥 Unhandled error", {
+  logger.error("Unhandled error", {
     error: err.message,
     stack: err.stack,
     url: req.url,
@@ -67,7 +67,7 @@ const logger = createPlip();
 
 // Plugin for request logging
 fastify.addHook('onRequest', async (request, reply) => {
-  logger.info("📨 Request received", {
+  logger.info("Request received", {
     method: request.method,
     url: request.url,
     ip: request.ip
@@ -75,7 +75,7 @@ fastify.addHook('onRequest', async (request, reply) => {
 });
 
 fastify.addHook('onResponse', async (request, reply) => {
-  logger.success("✅ Response sent", {
+  logger.success("Response sent", {
     method: request.method,
     url: request.url,
     statusCode: reply.statusCode,
@@ -85,7 +85,7 @@ fastify.addHook('onResponse', async (request, reply) => {
 
 // Error handler
 fastify.setErrorHandler((error, request, reply) => {
-  logger.error("❌ Request error", {
+  logger.error("Request error", {
     error: error.message,
     url: request.url,
     method: request.method
@@ -109,26 +109,26 @@ const logger = createPlip();
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const { method, url } = req;
   
-  logger.info("🔥 Next.js API call", { method, url });
+  logger.info("Next.js API call", { method, url });
   
   try {
     switch (method) {
       case 'GET':
         const users = await getUsers();
-        logger.success("👥 Users retrieved", { count: users.length });
+        logger.success("Users retrieved", { count: users.length });
         return res.status(200).json(users);
         
       case 'POST':
         const user = await createUser(req.body);
-        logger.success("✨ User created", { userId: user.id });
+        logger.success("User created", { userId: user.id });
         return res.status(201).json(user);
         
       default:
-        logger.warn("❓ Method not allowed", { method });
+        logger.warn("Method not allowed", { method });
         return res.status(405).json({ error: 'Method not allowed' });
     }
   } catch (error) {
-    logger.error("💥 API error", { 
+    logger.error("API error", {
       method, 
       url, 
       error: error.message 
@@ -151,7 +151,7 @@ const logger = createPlip();
 export function middleware(request: NextRequest) {
   const start = Date.now();
   
-  logger.info("🛣️ Middleware executing", {
+  logger.info("Middleware executing", {
     pathname: request.nextUrl.pathname,
     method: request.method,
     userAgent: request.headers.get('user-agent')
@@ -161,7 +161,7 @@ export function middleware(request: NextRequest) {
   
   response.headers.set('x-request-duration', `${Date.now() - start}ms`);
   
-  logger.success("✅ Middleware completed", {
+  logger.success("Middleware completed", {
     pathname: request.nextUrl.pathname,
     duration: `${Date.now() - start}ms`
   });
@@ -176,17 +176,17 @@ export function middleware(request: NextRequest) {
 
 ```typescript
 import { Injectable } from '@nestjs/common';
-import { createPlip, PlipLogger } from '@ru-dr/plip';
+import { createPlip } from '@ru-dr/plip';
+import type { Logger } from '@ru-dr/plip';
 
 @Injectable()
 export class LoggerService {
-  private logger: PlipLogger;
+  private logger: Logger;
   
   constructor() {
     this.logger = createPlip({
-      enableEmojis: process.env.NODE_ENV === 'development',
       enableColors: true,
-      enabledLevels: ['info', 'warn', 'error', 'fatal']
+      enabledLevels: ['info', 'warn', 'error']
     });
   }
   
@@ -220,16 +220,16 @@ export class UsersController {
   
   @Get()
   async findAll() {
-    this.logger.info("🔍 Fetching all users");
+    this.logger.info("Fetching all users");
     
     try {
       const users = await this.usersService.findAll();
-      this.logger.success("👥 Users retrieved successfully", { 
+      this.logger.success("Users retrieved successfully", {
         count: users.length 
       });
       return users;
     } catch (error) {
-      this.logger.error("❌ Failed to fetch users", { 
+      this.logger.error("Failed to fetch users", {
         error: error.message 
       });
       throw error;
@@ -238,18 +238,18 @@ export class UsersController {
   
   @Post()
   async create(@Body() createUserDto: CreateUserDto) {
-    this.logger.info("✨ Creating new user", { 
+    this.logger.info("Creating new user", {
       email: createUserDto.email 
     });
     
     try {
       const user = await this.usersService.create(createUserDto);
-      this.logger.success("🎉 User created successfully", { 
+      this.logger.success("User created successfully", {
         userId: user.id 
       });
       return user;
     } catch (error) {
-      this.logger.error("💥 User creation failed", { 
+      this.logger.error("User creation failed", {
         email: createUserDto.email,
         error: error.message 
       });
@@ -269,38 +269,38 @@ const logger = createPlip();
 
 // Connection logging
 mongoose.connection.on('connecting', () => {
-  logger.info("🔌 Connecting to MongoDB...");
+  logger.info("Connecting to MongoDB...");
 });
 
 mongoose.connection.on('connected', () => {
-  logger.success("✅ Connected to MongoDB", {
+  logger.success("Connected to MongoDB", {
     host: mongoose.connection.host,
     name: mongoose.connection.name
   });
 });
 
 mongoose.connection.on('error', (err) => {
-  logger.error("❌ MongoDB connection error", { 
+  logger.error("MongoDB connection error", {
     error: err.message 
   });
 });
 
 mongoose.connection.on('disconnected', () => {
-  logger.warn("⚠️ Disconnected from MongoDB");
+  logger.warn("Disconnected from MongoDB");
 });
 
 // Query logging middleware
 const schema = new mongoose.Schema({ /* ... */ });
 
 schema.pre('save', function() {
-  logger.debug("💾 Document save operation", {
+  logger.debug("Document save operation", {
     collection: this.constructor.modelName,
     id: this._id
   });
 });
 
 schema.post('save', function() {
-  logger.success("✅ Document saved", {
+  logger.success("Document saved", {
     collection: this.constructor.modelName,
     id: this._id
   });
@@ -324,39 +324,39 @@ const redis = new Redis({
 });
 
 redis.on('connect', () => {
-  logger.info("🔴 Connecting to Redis...");
+  logger.info("Connecting to Redis...");
 });
 
 redis.on('ready', () => {
-  logger.success("✅ Redis connection ready");
+  logger.success("Redis connection ready");
 });
 
 redis.on('error', (err) => {
-  logger.error("❌ Redis connection error", { 
+  logger.error("Redis connection error", {
     error: err.message 
   });
 });
 
 redis.on('close', () => {
-  logger.warn("⚠️ Redis connection closed");
+  logger.warn("Redis connection closed");
 });
 
 // Wrapper with logging
 class RedisLogger {
-  constructor(private redis: Redis, private logger: PlipLogger) {}
+  constructor(private redis: Redis, private logger: Logger) {}
   
   async get(key: string) {
-    this.logger.debug("🔍 Redis GET", { key });
+    this.logger.debug("Redis GET", { key });
     
     try {
       const value = await this.redis.get(key);
-      this.logger.success("✅ Redis GET success", { 
+      this.logger.success("Redis GET success", {
         key, 
         found: !!value 
       });
       return value;
     } catch (error) {
-      this.logger.error("❌ Redis GET failed", { 
+      this.logger.error("Redis GET failed", {
         key, 
         error: error.message 
       });
@@ -365,17 +365,17 @@ class RedisLogger {
   }
   
   async set(key: string, value: string, ttl?: number) {
-    this.logger.debug("💾 Redis SET", { key, ttl });
+    this.logger.debug("Redis SET", { key, ttl });
     
     try {
       const result = ttl 
         ? await this.redis.setex(key, ttl, value)
         : await this.redis.set(key, value);
         
-      this.logger.success("✅ Redis SET success", { key, ttl });
+      this.logger.success("Redis SET success", { key, ttl });
       return result;
     } catch (error) {
-      this.logger.error("❌ Redis SET failed", { 
+      this.logger.error("Redis SET failed", {
         key, 
         error: error.message 
       });
@@ -393,9 +393,8 @@ import { createPlip } from '@ru-dr/plip';
 
 // Create test-specific logger
 const testLogger = createPlip({
-  enableEmojis: false,
   enableColors: false,
-  enabledLevels: ['error', 'fatal'] // Only log errors in tests
+  enabledLevels: ['error'] // Only log errors in tests
 });
 
 // Make available globally
@@ -444,10 +443,9 @@ RUN npm ci --only=production
 
 COPY . .
 
-# Environment variables for Plip
+# Standard environment variables Plip respects
 ENV NODE_ENV=production
-ENV PLIP_EMOJIS=false
-ENV PLIP_COLORS=false
+ENV NO_COLOR=1
 
 EXPOSE 3000
 
@@ -465,8 +463,7 @@ services:
     build: .
     environment:
       - NODE_ENV=production
-      - PLIP_EMOJIS=false
-      - PLIP_COLORS=false
+      - NO_COLOR=1
     logging:
       driver: "json-file"
       options:
@@ -504,8 +501,7 @@ jobs:
         run: npm test
         env:
           NODE_ENV: test
-          PLIP_EMOJIS: false
-          PLIP_COLORS: false
+          NO_COLOR: '1'
 ```
 
 ## Performance Monitoring
@@ -517,9 +513,8 @@ import { createPlip } from '@ru-dr/plip';
 import * as Sentry from '@sentry/node';
 
 const logger = createPlip({
-  enableEmojis: false,
   enableColors: false,
-  enabledLevels: ['info', 'warn', 'error', 'fatal']
+  enabledLevels: ['info', 'warn', 'error']
 });
 
 // Custom logger that also sends to Sentry
@@ -540,8 +535,8 @@ const createMonitoredLogger = () => {
       Sentry.captureException(new Error(message), { extra: data });
     },
     
-    fatal: (message: string, data?: any) => {
-      logger.fatal(message, data);
+    critical: (message: string, data?: any) => {
+      logger.error(message, data);
       Sentry.captureException(new Error(message), { 
         level: 'fatal',
         extra: data 
@@ -564,11 +559,10 @@ const getLoggerConfig = () => {
   const isCI = !!process.env.CI;
   
   return {
-    enableEmojis: env === 'development' && !isCI,
     enableColors: !isContainer && !isCI,
     enabledLevels: env === 'production' 
-      ? ['warn', 'error', 'fatal']
-      : ['info', 'success', 'warn', 'error', 'fatal']
+      ? ['warn', 'error']
+      : ['info', 'success', 'warn', 'error']
   };
 };
 ```
@@ -596,7 +590,7 @@ Implement error boundaries with logging:
 
 ```typescript
 process.on('uncaughtException', (error) => {
-  logger.fatal("🚨 Uncaught Exception", {
+  logger.error("Uncaught Exception", {
     error: error.message,
     stack: error.stack
   });
@@ -604,7 +598,7 @@ process.on('uncaughtException', (error) => {
 });
 
 process.on('unhandledRejection', (reason, promise) => {
-  logger.fatal("🚨 Unhandled Rejection", {
+  logger.error("Unhandled Rejection", {
     reason: String(reason),
     promise: promise.toString()
   });

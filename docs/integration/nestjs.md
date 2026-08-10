@@ -21,17 +21,18 @@ Create a custom logger provider for NestJS:
 ```typescript
 // src/common/logger/plip-logger.service.ts
 import { Injectable, LoggerService } from '@nestjs/common'
-import { Logger } from '@ru-dr/plip'
+import { createPlip, type Logger, type LogLevel } from '@ru-dr/plip'
 
 @Injectable()
 export class PlipLoggerService implements LoggerService {
   private logger: Logger
 
   constructor() {
-    this.logger = new Logger({
-      level: process.env.LOG_LEVEL || 'info',
-      timestamp: true,
-      colorize: process.env.NODE_ENV !== 'production'
+    this.logger = createPlip({
+      enabledLevels: (process.env.LOG_LEVELS?.split(',') as LogLevel[]) ??
+        ['info', 'warn', 'error', 'success'],
+      enableTimestamp: true,
+      enableColors: process.env.NODE_ENV !== 'production'
     })
   }
 
@@ -92,15 +93,15 @@ async function bootstrap() {
   const logger = app.get(PlipLoggerService)
   app.useLogger(logger)
 
-  logger.log('🚀 Application starting...', 'Bootstrap')
+  logger.log('Application starting...', 'Bootstrap')
 
   await app.listen(3000)
   
-  logger.log('✅ Application started on port 3000', 'Bootstrap')
+  logger.log('Application started on port 3000', 'Bootstrap')
 }
 
 bootstrap().catch((error) => {
-  console.error('❌ Failed to start application:', error)
+  console.error('Failed to start application:', error)
 })
 ```
 
@@ -630,10 +631,10 @@ Use ConfigModule for environment-based logger configuration:
 import { registerAs } from '@nestjs/config'
 
 export default registerAs('logger', () => ({
-  level: process.env.LOG_LEVEL || 'info',
-  colorize: process.env.NODE_ENV !== 'production',
-  timestamp: true,
-  format: process.env.NODE_ENV === 'production' ? 'json' : 'pretty'
+  enabledLevels: process.env.LOG_LEVELS?.split(',') ?? ['info', 'warn', 'error', 'success'],
+  enableColors: process.env.NODE_ENV !== 'production',
+  enableTimestamp: true,
+  enableStructuredOutput: process.env.NODE_ENV === 'production'
 }))
 ```
 
@@ -643,18 +644,18 @@ Update the logger service:
 // src/common/logger/plip-logger.service.ts
 import { Injectable } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
-import { Logger } from '@ru-dr/plip'
+import { createPlip, type Logger } from '@ru-dr/plip'
 
 @Injectable()
 export class PlipLoggerService {
   private logger: Logger
 
   constructor(private configService: ConfigService) {
-    this.logger = new Logger({
-      level: this.configService.get('logger.level'),
-      colorize: this.configService.get('logger.colorize'),
-      timestamp: this.configService.get('logger.timestamp'),
-      format: this.configService.get('logger.format')
+    this.logger = createPlip({
+      enabledLevels: this.configService.get('logger.enabledLevels'),
+      enableColors: this.configService.get('logger.enableColors'),
+      enableTimestamp: this.configService.get('logger.enableTimestamp'),
+      enableStructuredOutput: this.configService.get('logger.enableStructuredOutput')
     })
   }
 

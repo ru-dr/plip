@@ -10,7 +10,6 @@ Best practices and configurations for using Plip in production environments.
 import { createPlip } from '@ru-dr/plip';
 
 const productionLogger = createPlip({
-  enableEmojis: false,  // Cleaner for log aggregation
   enableColors: false,  // Better for file logging
   enabledLevels: ['info', 'warn', 'error', 'trace']
 });
@@ -24,19 +23,16 @@ const createEnvironmentLogger = () => {
   
   const configs = {
     production: {
-      enableEmojis: false,
       enableColors: false,
-      enabledLevels: ['warn', 'error', 'fatal']
+      enabledLevels: ['warn', 'error']
     },
     staging: {
-      enableEmojis: false,
       enableColors: false,
-      enabledLevels: ['info', 'warn', 'error', 'fatal']
+      enabledLevels: ['info', 'warn', 'error']
     },
     development: {
-      enableEmojis: true,
       enableColors: true,
-      enabledLevels: ['verbose', 'debug', 'info', 'success', 'warn', 'error', 'fatal']
+      enabledLevels: ['verbose', 'debug', 'info', 'success', 'warn', 'error', 'trace']
     }
   };
   
@@ -53,9 +49,8 @@ const logger = createEnvironmentLogger();
 ```typescript
 const createStructuredLogger = () => {
   const logger = createPlip({
-    enableEmojis: false,
     enableColors: false,
-    enabledLevels: ['info', 'warn', 'error', 'fatal']
+    enabledLevels: ['info', 'warn', 'error']
   });
   
   const addMetadata = (data = {}) => ({
@@ -70,8 +65,7 @@ const createStructuredLogger = () => {
   return {
     info: (message: string, data?: any) => logger.info(message, addMetadata(data)),
     warn: (message: string, data?: any) => logger.warn(message, addMetadata(data)),
-    error: (message: string, data?: any) => logger.error(message, addMetadata(data)),
-    fatal: (message: string, data?: any) => logger.fatal(message, addMetadata(data))
+    error: (message: string, data?: any) => logger.error(message, addMetadata(data))
   };
 };
 ```

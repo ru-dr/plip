@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🫧 Plip Logger
+# Plip Logger
 
 *A delightful, colorful logging experience for modern applications*
 
@@ -14,21 +14,22 @@
 
 ---
 
-## ✨ Why Plip?
+## Why Plip?
 
 Tired of boring console logs? **Plip** brings joy back to logging with:
 
-- 🌈 **Smart Colors** - Automatic terminal detection with beautiful color schemes
-- 😊 **Expressive Emojis** - Visual context that makes logs easier to scan
-- 🎯 **7 Log Levels** - From `verbose` to `error`, perfect granularity
-- 🔍 **Syntax Highlighting** - JSON objects rendered beautifully
-- ⚙️ **Fluent API** - Chain methods for elegant configuration
-- 🚀 **Zero Config** - Works great out of the box, CSR by default
-- 🌐 **SSR/CSR Optimized** - Specialized configs for server and client environments
-- 📦 **TypeScript First** - Full type safety and IntelliSense
-- 🔧 **Environment Aware** - Respects `NODE_ENV` and terminal capabilities
+- **Smart Colors** - Automatic terminal detection with beautiful color schemes
+- **7 Log Levels** - From `verbose` to `error`, perfect granularity
+- **Syntax Highlighting** - JSON objects rendered beautifully
+- **Fluent API** - Chain methods for elegant configuration
+- **Zero Config** - Works great out of the box, CSR by default
+- **SSR/CSR Optimized** - Specialized configs for server and client environments
+- **TypeScript First** - Full type safety and IntelliSense
+- **Environment Aware** - Respects `NODE_ENV` and terminal capabilities
+- **Zero Dependencies** - No runtime dependencies, tree-shakeable (`"sideEffects": false`)
+- **Dual ESM + CommonJS** - `import` and `require` both work
 
-## 📦 Installation
+## Installation
 
 ```sh
 # npm
@@ -44,20 +45,19 @@ pnpm add @ru-dr/plip
 bun add @ru-dr/plip
 ```
 
-> **🌍 Multi-Language Support Coming Soon!**  
-> Plip is currently available for **JavaScript/TypeScript** environments. We're actively working on bringing the same delightful logging experience to **Python**, **Java**, **PHP**, and other popular languages. [Follow our progress](https://github.com/ru-dr/plip/issues) or [contribute](./docs/request/contributing.md) to help us expand faster!
+> Plip is a **JavaScript/TypeScript** library with zero runtime dependencies. It ships both ESM (`dist/esm/index.js`) and CommonJS (`dist/cjs/index.js`) builds, with types at `dist/esm/index.d.ts`, and requires Node.js 16 or newer.
 
-## 🚀 Quick Start
+## Quick Start
 
 Get logging in seconds:
 
 ```typescript
 import { plip } from '@ru-dr/plip';
 
-plip.info("🎉 Welcome to Plip!");
-plip.success("✅ Everything is working perfectly");
-plip.warn("⚠️  This might need your attention");
-plip.error("💥 Something went wrong");
+plip.info("Welcome to Plip!");
+plip.success("Everything is working perfectly");
+plip.warn("This might need your attention");
+plip.error("Something went wrong");
 
 // Log complex objects with beautiful syntax highlighting
 plip.info("User profile:", {
@@ -70,11 +70,11 @@ plip.info("User profile:", {
 
 **Output Preview:**
 ```
-🫧 [INFO] 🎉 Welcome to Plip!
-🎉 [SUCCESS] ✅ Everything is working perfectly
-⚠️ [WARN] ⚠️  This might need your attention
-💥 [ERROR] 💥 Something went wrong
-🫧 [INFO] User profile: {
+[INFO] Welcome to Plip!
+[SUCCESS] Everything is working perfectly
+[WARN] This might need your attention
+[ERROR] Something went wrong
+[INFO] User profile: {
   "name": "Alex Developer",
   "age": 28,
   "skills": ["TypeScript", "Node.js", "React"],
@@ -82,7 +82,7 @@ plip.info("User profile:", {
 }
 ```
 
-## 📚 API Documentation
+## API Documentation
 
 ### Creating Logger Instances
 
@@ -94,32 +94,30 @@ plip.info("Using default logger");
 
 // Create a custom logger with specific configuration
 const customLogger = createPlip({
-  enableEmojis: true,
   enableColors: true,
   enabledLevels: ['info', 'warn', 'error']
 });
 
 // Create a production logger
 const prodLogger = createPlip({
-  enableEmojis: false,
   enableColors: false,
   enabledLevels: ['warn', 'error']
 });
 ```
 
-### 🎨 Log Levels
+### Log Levels
 
-Plip provides 7 distinct log levels, each with its own emoji and color:
+Plip provides 7 distinct log levels, each with its own color:
 
-| Level | Emoji | Description | Use Case |
-|-------|-------|-------------|----------|
-| `info` | 🫧 | General information | App status, user actions |
-| `success` | 🎉 | Success messages | Completed operations |
-| `warn` | ⚠️ | Warning messages | Deprecated features, recoverable errors |
-| `error` | 💥 | Error messages | Exceptions, failures |
-| `debug` | 🔍 | Debug information | Development debugging |
-| `trace` | 🛰️ | Detailed tracing | Performance monitoring |
-| `verbose` | 📢 | Verbose output | Detailed system information |
+| Level | Description | Use Case |
+|-------|-------------|----------|
+| `info` | General information | App status, user actions |
+| `success` | Success messages | Completed operations |
+| `warn` | Warning messages | Deprecated features, recoverable errors |
+| `error` | Error messages | Exceptions, failures |
+| `debug` | Debug information | Development debugging |
+| `trace` | Detailed tracing | Performance monitoring |
+| `verbose` | Verbose output | Detailed system information |
 
 ```typescript
 // Using all log levels
@@ -132,33 +130,29 @@ plip.trace("Function execution time: 45ms");
 plip.verbose("System memory usage:", process.memoryUsage());
 ```
 
-### ⚙️ Configuration Options
+### Configuration Options
 
 Customize Plip to fit your needs:
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `silent` | `boolean` | `false` | Suppress all output |
-| `enableEmojis` | `boolean` | `auto-detect` | Show emoji indicators |
 | `enableColors` | `boolean` | `auto-detect` | Use colorized output |
 | `enableSyntaxHighlighting` | `boolean` | `true` | Highlight object syntax |
 | `devOnly` | `boolean` | `auto-detect` | Only log in development |
 | `enabledLevels` | `LogLevel[]` | `all` | Array of levels to enable |
-| `theme` | `Partial<PlipTheme>` | `default` | Custom colors and emojis |
+| `minLevel` | `LogLevel` | `undefined` | Severity threshold - levels ranked below it are dropped |
+| `onError` | `LogErrorHandler` | `console.error` | Called when a transport throws or rejects |
+| `theme` | `Partial<PlipTheme>` | `default` | Custom colors |
 
 ```typescript
 const logger = createPlip({
   silent: false,
-  enableEmojis: true,
   enableColors: true,
   enableSyntaxHighlighting: true,
   devOnly: false,
   enabledLevels: ['info', 'warn', 'error', 'success'],
   theme: {
-    emojis: {
-      info: "ℹ️",
-      success: "✅"
-    },
     colors: {
       info: customBlueColor,
       success: customGreenColor
@@ -167,33 +161,34 @@ const logger = createPlip({
 });
 ```
 
-### 🔗 Fluent API (Method Chaining)
+### Fluent API (Method Chaining)
 
 Build your perfect logger with our fluent, chainable API:
 
 ```typescript
 const logger = plip
   .withColors(true)           // Enable colors
-  .withEmojis(true)           // Enable emojis
   .withSyntaxHighlighting(true) // Enable JSON highlighting
   .levels('info', 'error', 'success') // Only these levels
   .silent();                  // Make it silent
 
 // Each method returns a new logger instance
 const devLogger = plip.levels('debug', 'trace', 'verbose');
-const prodLogger = plip.levels('warn', 'error').withEmojis(false);
+const prodLogger = plip.levels('warn', 'error').withColors(false);
 ```
 
 **Available Fluent Methods:**
 - `.withColors(enabled)` - Toggle color output
-- `.withEmojis(enabled)` - Toggle emoji indicators  
 - `.withSyntaxHighlighting(enabled)` - Toggle object highlighting
-- `.withTheme(theme)` - Apply custom theme
 - `.withContext(context)` - Add persistent context to all logs
+- `.child(context)` - Create a child logger with additional context
 - `.levels(...levels)` - Filter enabled log levels
+- `.minLevel(level)` - Set a severity threshold
 - `.silent()` - Suppress all output
 
-## 💡 Examples
+`logger.flush()` returns a promise that resolves once every attached transport has drained - useful before a process exits.
+
+## Examples
 
 ### Basic Logging
 ```typescript
@@ -219,15 +214,15 @@ const apiLogger = plip.withContext({ scope: "api", version: "v1" });
 
 // All logs will include the context automatically
 authLogger.info("User login attempt", { userId: 123, method: "oauth" });
-// Output: 🫧 [INFO] User login attempt {"scope":"auth","userId":123,"method":"oauth"}
+// Output: [INFO] User login attempt {"scope":"auth","userId":123,"method":"oauth"}
 
 dbLogger.warn("Connection pool high usage", { activeConnections: 45 });
-// Output: ⚠️ [WARN] Connection pool high usage {"scope":"database","pool":"primary","activeConnections":45}
+// Output: [WARN] Connection pool high usage {"scope":"database","pool":"primary","activeConnections":45}
 
 // Context can be chained and extended
 const requestLogger = apiLogger.withContext({ requestId: "req-789" });
 requestLogger.error("Request processing failed", { endpoint: "/users" });
-// Output: 💥 [ERROR] Request processing failed {"scope":"api","version":"v1","requestId":"req-789","endpoint":"/users"}
+// Output: [ERROR] Request processing failed {"scope":"api","version":"v1","requestId":"req-789","endpoint":"/users"}
 ```
 
 ### Environment-Specific Logging
@@ -237,14 +232,12 @@ import { createPlip } from '@ru-dr/plip';
 // Development logger - verbose and colorful
 const devLogger = createPlip({
   enabledLevels: ['debug', 'trace', 'info', 'warn', 'error'],
-  enableEmojis: true,
   enableColors: true
 });
 
 // Production logger - errors and warnings only
 const prodLogger = createPlip({
   enabledLevels: ['warn', 'error'],
-  enableEmojis: false,
   enableColors: false,
   enableSyntaxHighlighting: false
 });
@@ -259,12 +252,6 @@ import { createPlip, colors } from '@ru-dr/plip';
 
 const logger = createPlip({
   theme: {
-    emojis: {
-      info: "📘",
-      success: "✅", 
-      warn: "⚠️",
-      error: "❌"
-    },
     colors: {
       info: colors.blue,
       success: colors.green,
@@ -293,7 +280,7 @@ const logger = createPlip({
 });
 ```
 
-## 🌐 SSR vs CSR Logging
+## SSR vs CSR Logging
 
 Plip provides **optimized configurations** for both Server-Side Rendering (SSR) and Client-Side Rendering (CSR) environments. **CSR is the default** for the best modern web development experience.
 
@@ -302,27 +289,29 @@ Plip provides **optimized configurations** for both Server-Side Rendering (SSR) 
 ```typescript
 import { plip, createSSRLogger, createCSRLogger } from '@ru-dr/plip';
 
-// Default logger uses CSR configuration (with emojis & colors)
-plip.info("Hello world!"); // 🫧 [INFO] Hello world!
+// Default logger uses CSR configuration (with colors)
+plip.info("Hello world!"); // [INFO] Hello world!
 
 // Explicit SSR logger (optimized for servers)
 const serverLogger = createSSRLogger();
 serverLogger.info("Server started", { port: 3000 }); 
-// Output: [INFO] Server started {"port":3000}
+// Output: 2025-01-01T00:00:00.000Z [INFO] Server started {"port":3000}
+// (SSR enables timestamps by default)
 
 // Explicit CSR logger (optimized for browsers) 
 const clientLogger = createCSRLogger();
 clientLogger.success("User logged in", { userId: 123 });
-// Output: 🎉 [SUCCESS] User logged in {"userId":123}
+// Output: [SUCCESS] User logged in {"userId":123}
 ```
 
 ### Key Differences
 
 | Feature | SSR (Server) | CSR (Client) |
 |---------|-------------|-------------|
-| **Emojis** | ❌ Disabled | ✅ Enabled |
-| **Colors** | ❌ Disabled | ✅ Enabled |
-| **Syntax Highlighting** | ❌ Disabled | ✅ Enabled |
+| **Colors** | Enabled in development, disabled in production | Enabled |
+| **Syntax Highlighting** | Enabled | Enabled |
+| **Timestamps** | Enabled | Disabled |
+| **Structured (JSON) Output** | Enabled in production | Disabled |
 | **Best For** | APIs, servers, logs | Browsers, debugging |
 | **Output Style** | Structured, plain | Rich, visual |
 
@@ -343,12 +332,12 @@ const clientLogger = createCSRLogger();
 
 function App() {
   useEffect(() => {
-    clientLogger.success("App loaded"); // 🎉 [SUCCESS] App loaded
+    clientLogger.success("App loaded"); // [SUCCESS] App loaded
   }, []);
 }
 ```
 
-> 📖 **Learn More:** Check out our [SSR vs CSR Guide](./docs/guide/ssr-csr.md) for detailed examples and best practices.
+> **Learn More:** Check out our [SSR vs CSR Guide](./docs/guide/ssr-csr.md) for detailed examples and best practices.
 ```typescript
 import { createPlip } from '@ru-dr/plip';
 
@@ -363,20 +352,20 @@ const logger = createPlip({
 });
 ```
 
-## 🛠️ Advanced Usage
+## Advanced Usage
 
 ### TypeScript Integration
 ```typescript
-import { PlipConfig, LogLevel, createPlip } from '@ru-dr/plip';
+import { PlipConfig, LogLevel, createPlip, colors } from '@ru-dr/plip';
 
 // Type-safe configuration
 const config: PlipConfig = {
   enabledLevels: ['info', 'error'] as LogLevel[],
   enableColors: true,
   theme: {
-    emojis: {
-      info: "💡",
-      error: "🚨"
+    colors: {
+      info: colors.blue,
+      error: colors.red
     }
   }
 };
@@ -425,40 +414,40 @@ try {
 }
 ```
 
-## 📚 Learn More
+## Learn More
 
 Explore our comprehensive documentation to master Plip Logger:
 
-### 📖 **Guides**
+### **Guides**
 - [Basic Usage](./docs/guide/basic-usage.md) - Learn the fundamentals
 - [Configuration](./docs/guide/configuration.md) - Customize Plip to your needs  
 - [SSR vs CSR](./docs/guide/ssr-csr.md) - Server-side and client-side optimized configurations
 - [Best Practices](./docs/guide/best-practices.md) - Write better logs
 
-### 💡 **Examples & Patterns**
+### **Examples & Patterns**
 - [Custom Loggers](./docs/examples/custom-loggers.md) - **Context-aware logging** and advanced patterns
 - [Integration Examples](./docs/examples/integration.md) - Framework-specific implementations
 - [Production Setup](./docs/examples/production.md) - Production-ready configurations
 - [SSR/CSR Quick Start](./docs/examples/ssr-csr-quickstart.md) - Get started with server/client logging
 
-### 🔧 **Integrations**
+### **Integrations**
 - [Express.js](./docs/integration/express.md) - Express middleware and patterns
 - [Next.js](./docs/integration/nextjs.md) - Next.js SSR/CSR integration
 - [NestJS](./docs/integration/nestjs.md) - NestJS dependency injection
 - [Database Logging](./docs/integration/database.md) - Database query logging
 
-### 📋 **API Reference**
+### **API Reference**
 - [Logger API](./docs/api/logger.md) - Complete method reference
 - [Configuration](./docs/api/configuration.md) - All configuration options
 - [Types](./docs/api/types.md) - TypeScript definitions
 
-> 💡 **Pro Tip:** Start with [Custom Loggers](./docs/examples/custom-loggers.md) to learn context-aware logging with `plip.withContext({ scope: "auth" })`
+> **Pro Tip:** Start with [Custom Loggers](./docs/examples/custom-loggers.md) to learn context-aware logging with `plip.withContext({ scope: "auth" })`
 
-## 🤝 Contributing
+## Contributing
 
 We love contributions! Here's how you can help make Plip even better:
 
-### 🐛 Found a Bug?
+### Found a Bug?
 - Check if it's already reported in [Issues](https://github.com/ru-dr/plip/issues)
 - If not, [create a new issue](https://github.com/ru-dr/plip/issues/new) with:
   - Clear description of the problem
@@ -466,12 +455,12 @@ We love contributions! Here's how you can help make Plip even better:
   - Expected vs actual behavior
   - Your environment details
 
-### 💡 Have an Idea?
+### Have an Idea?
 - [Open a feature request](https://github.com/ru-dr/plip/issues/new)
 - Join our discussions
 - Check our [roadmap](https://github.com/ru-dr/plip/projects) for planned features
 
-### 🔧 Want to Code?
+### Want to Code?
 1. **Fork** the repository
 2. **Clone** your fork: `git clone https://github.com/YOUR_USERNAME/plip.git`
 3. **Create** a branch: `git checkout -b feature/amazing-feature`
@@ -483,7 +472,7 @@ We love contributions! Here's how you can help make Plip even better:
 9. **Push** to your branch: `git push origin feature/amazing-feature`
 10. **Open** a Pull Request
 
-### 📝 Development Setup
+### Development Setup
 ```bash
 # Clone the repository
 git clone https://github.com/ru-dr/plip.git
@@ -505,26 +494,26 @@ bun run build
 bun run dev
 ```
 
-### 🧪 Testing
+### Testing
 We use [Bun](https://bun.sh/) for testing. Please ensure:
 - All tests pass: `bun test`
 - Add tests for new features
 - Maintain or improve code coverage
 - Follow existing test patterns
 
-## 📄 License
+## License
 
 This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
 
-**TL;DR:** You can use, modify, and distribute this project freely. Just keep the copyright notice! 😊
+**TL;DR:** You can use, modify, and distribute this project freely. Just keep the copyright notice!
 
 ---
 
 <div align="center">
 
-**Made with ❤️ by [ru-dr](https://github.com/ru-dr)**
+**Made with love by [ru-dr](https://github.com/ru-dr)**
 
-⭐ **Star this repo if you find it useful!** ⭐
+**Star this repo if you find it useful!**
 
 [Report Bug](https://github.com/ru-dr/plip/issues) • [Request Feature](https://github.com/ru-dr/plip/issues) • [Discussions](https://github.com/ru-dr/plip/discussions)
 

@@ -25,7 +25,6 @@ import { createPlip } from '@ru-dr/plip';
 
 // Simple customization
 const logger = createPlip({
-  enableEmojis: true,
   enableColors: true,
   enabledLevels: ['info', 'warn', 'error']
 });
@@ -37,7 +36,6 @@ logger.info("Hello from custom logger!");
 
 ```typescript
 const createEnvLogger = () => createPlip({
-  enableEmojis: process.env.NODE_ENV === 'development',
   enableColors: process.stdout.isTTY,
   enabledLevels: process.env.NODE_ENV === 'production' 
     ? ['info', 'warn', 'error'] 
@@ -48,25 +46,6 @@ const logger = createEnvLogger();
 ```
 
 ## Visual Customization
-
-### Emoji Control
-
-```typescript
-// Disable emojis for clean output
-const cleanLogger = createPlip({
-  enableEmojis: false
-});
-
-// Enable emojis for visual appeal
-const visualLogger = createPlip({
-  enableEmojis: true
-});
-
-// Conditional emojis based on environment
-const smartLogger = createPlip({
-  enableEmojis: process.env.NODE_ENV === 'development' && process.stdout.isTTY
-});
-```
 
 ### Color Configuration
 
@@ -98,24 +77,22 @@ const envColorLogger = createPlip({
 ### Development vs Production
 
 ```typescript
-const configs = {
+import type { PlipConfig } from '@ru-dr/plip';
+
+const configs: Record<string, PlipConfig> = {
   development: {
-    enableEmojis: true,
     enableColors: true,
     enabledLevels: ['verbose', 'debug', 'info', 'success', 'warn', 'error', 'trace']
   },
   staging: {
-    enableEmojis: false,
     enableColors: true,
     enabledLevels: ['info', 'success', 'warn', 'error', 'trace']
   },
   production: {
-    enableEmojis: false,
     enableColors: false,
     enabledLevels: ['info', 'warn', 'error']
   },
   testing: {
-    enableEmojis: false,
     enableColors: false,
     enabledLevels: [] // Silent during tests
   }
@@ -139,14 +116,12 @@ const errorLogger = createPlip({
 
 // Audit logger (important events only)
 const auditLogger = createPlip({
-  enableEmojis: false,
   enableColors: false,
   enabledLevels: ['info', 'warn', 'error']
 });
 
 // Development logger (everything)
 const devLogger = createPlip({
-  enableEmojis: true,
   enableColors: true,
   enabledLevels: ['verbose', 'debug', 'info', 'success', 'warn', 'error', 'trace']
 });
@@ -160,7 +135,6 @@ const devLogger = createPlip({
 // Base logger factory
 const createServiceLogger = (serviceName: string, config?: Partial<PlipConfig>) => {
   const defaultConfig = {
-    enableEmojis: process.env.NODE_ENV === 'development',
     enableColors: process.stdout.isTTY,
     enabledLevels: ['info', 'warn', 'error', 'debug']
   };
@@ -188,7 +162,7 @@ const createServiceLogger = (serviceName: string, config?: Partial<PlipConfig>) 
 
 // Usage
 const userService = createServiceLogger('UserService');
-const paymentService = createServiceLogger('PaymentService', { enableEmojis: false });
+const paymentService = createServiceLogger('PaymentService');
 const dbService = createServiceLogger('DatabaseService', { enabledLevels: ['error', 'warn'] });
 
 userService.info("User created successfully");
@@ -202,7 +176,6 @@ dbService.error("Database connection failed");
 // Request logger with correlation ID
 export const createRequestLogger = (requestId: string, userId?: string) => {
   const logger = createPlip({
-    enableEmojis: false,
     enableColors: true,
     enabledLevels: ['info', 'warn', 'error', 'debug']
   });
@@ -231,6 +204,8 @@ app.use((req, res, next) => {
 ### Dynamic Configuration
 
 ```typescript
+import type { LogLevel, PlipConfig } from '@ru-dr/plip';
+
 export class ConfigurableLogger {
   private config: PlipConfig;
   private logger: ReturnType<typeof createPlip>;
@@ -246,7 +221,7 @@ export class ConfigurableLogger {
   }
 
   setLogLevel(level: 'debug' | 'info' | 'warn' | 'error') {
-    const levelMap = {
+    const levelMap: Record<string, LogLevel[]> = {
       debug: ['debug', 'info', 'success', 'warn', 'error', 'trace'],
       info: ['info', 'success', 'warn', 'error', 'trace'],
       warn: ['warn', 'error', 'trace'],
@@ -258,7 +233,6 @@ export class ConfigurableLogger {
 
   enableDebugMode() {
     this.updateConfig({
-      enableEmojis: true,
       enableColors: true,
       enabledLevels: ['verbose', 'debug', 'info', 'success', 'warn', 'error', 'trace']
     });
@@ -266,7 +240,6 @@ export class ConfigurableLogger {
 
   enableProductionMode() {
     this.updateConfig({
-      enableEmojis: false,
       enableColors: false,
       enabledLevels: ['info', 'warn', 'error']
     });
@@ -284,7 +257,6 @@ export class ConfigurableLogger {
 
 // Usage
 const logger = new ConfigurableLogger({
-  enableEmojis: true,
   enableColors: true,
   enabledLevels: ['info', 'warn', 'error']
 });
@@ -309,22 +281,18 @@ interface LoggingEnvironment {
 
 export const LOGGING_CONFIGS: LoggingEnvironment = {
   development: {
-    enableEmojis: true,
     enableColors: true,
     enabledLevels: ['verbose', 'debug', 'info', 'success', 'warn', 'error', 'trace']
   },
   staging: {
-    enableEmojis: false,
     enableColors: true,
     enabledLevels: ['debug', 'info', 'success', 'warn', 'error', 'trace']
   },
   production: {
-    enableEmojis: false,
     enableColors: false,
     enabledLevels: ['info', 'warn', 'error']
   },
   testing: {
-    enableEmojis: false,
     enableColors: false,
     enabledLevels: ['error'] // Only errors during tests
   }
@@ -396,7 +364,7 @@ const paymentServiceLogger = ServiceLoggerFactory.createLogger({
   serviceName: 'payment-service',
   version: '2.1.0',
   environment: process.env.NODE_ENV || 'development',
-  customConfig: { enableEmojis: false } // Custom config for this service
+  customConfig: { enableColors: false } // Custom config for this service
 });
 ```
 
@@ -404,15 +372,19 @@ const paymentServiceLogger = ServiceLoggerFactory.createLogger({
 
 ```typescript
 // config/env-aware-logging.ts
+import type { LogLevel } from '@ru-dr/plip';
+
+// Plip does not read any PLIP_* variables itself - these are your own
+// application variables, used here to build a PlipConfig.
 export const createEnvAwareLogger = () => {
   // Environment variable configuration
-  const enableEmojis = process.env.PLIP_EMOJIS !== 'false';
   const enableColors = process.env.PLIP_COLORS !== 'false';
   const logLevel = process.env.LOG_LEVEL || 'info';
   const forceColors = process.env.FORCE_COLOR === '1';
   
-  // Log level hierarchy
-  const levelHierarchy: Record<string, string[]> = {
+  // Equivalent to `minLevel`, kept explicit here to show the mapping.
+  // Prefer `minLevel` (or the exported `levelsAtOrAbove`) in new code.
+  const levelHierarchy: Record<string, LogLevel[]> = {
     verbose: ['verbose', 'debug', 'info', 'success', 'warn', 'error', 'trace'],
     debug: ['debug', 'info', 'success', 'warn', 'error', 'trace'],
     info: ['info', 'success', 'warn', 'error', 'trace'],
@@ -422,7 +394,6 @@ export const createEnvAwareLogger = () => {
   };
 
   return createPlip({
-    enableEmojis: enableEmojis && process.env.NODE_ENV !== 'test',
     enableColors: forceColors || (enableColors && process.stdout.isTTY),
     enabledLevels: levelHierarchy[logLevel] || levelHierarchy.info
   });
@@ -434,7 +405,6 @@ export const createContainerAwareLogger = () => {
                      process.env.KUBERNETES_SERVICE_HOST !== undefined;
   
   return createPlip({
-    enableEmojis: !isContainer,
     enableColors: process.env.FORCE_COLOR === '1' || (!isContainer && process.stdout.isTTY),
     enabledLevels: isContainer 
       ? ['info', 'warn', 'error'] 
@@ -482,7 +452,6 @@ export const createLazyLogger = (config: PlipConfig) => new LazyLogger(config);
 // Only create debug logger in development
 const debugLogger = process.env.NODE_ENV === 'development' 
   ? createPlip({ 
-      enableEmojis: true,
       enableColors: true,
       enabledLevels: ['debug', 'verbose'] 
     })
@@ -567,7 +536,6 @@ export const loggingMiddleware = (req: Request, res: Response, next: NextFunctio
 ```typescript
 // utils/db-logger.ts
 const dbLogger = createPlip({
-  enableEmojis: false,
   enableColors: true,
   enabledLevels: process.env.NODE_ENV === 'development' 
     ? ['debug', 'info', 'warn', 'error'] 
@@ -594,7 +562,6 @@ export const logQuery = (query: string, params?: any[], duration?: number) => {
 ```typescript
 // utils/error-logger.ts
 const errorLogger = createPlip({
-  enableEmojis: false,
   enableColors: false,
   enabledLevels: ['error', 'warn']
 });
@@ -648,7 +615,7 @@ const testLogger = createPlip({
   enabledLevels: ['debug', 'info', 'warn', 'error']
 });
 
-console.log('Enabled levels:', testLogger.getEnabledLevels?.()); // If available
+// There is no getter for the active config - verify by logging at each level
 testLogger.debug("This should appear");
 testLogger.verbose("This should NOT appear");
 ```
@@ -685,7 +652,6 @@ export const debugConfig = () => {
   console.log('CI Environment:', process.env.CI);
   
   const testConfig = {
-    enableEmojis: true,
     enableColors: true,
     enabledLevels: ['info', 'warn', 'error']
   };
@@ -729,13 +695,11 @@ Always include relevant context when logging errors to aid in debugging and moni
 ```typescript
 const createFeatureAwareLogger = () => {
   const features = {
-    emojis: process.env.FEATURE_EMOJIS !== 'false',
     colors: process.env.FEATURE_COLORS !== 'false',
     verbose: process.env.FEATURE_VERBOSE === 'true'
   };
   
   return createPlip({
-    enableEmojis: features.emojis,
     enableColors: features.colors,
     enabledLevels: features.verbose 
       ? ['verbose', 'debug', 'info', 'success', 'warn', 'error', 'trace']
@@ -747,29 +711,30 @@ const createFeatureAwareLogger = () => {
 ### Adaptive Logger Pattern
 
 ```typescript
+import type { LogLevel } from '@ru-dr/plip';
+
 class AdaptiveLogger {
+  // The logger's config is private, so keep your own copy of anything you
+  // need to read back later.
+  private colorsEnabled = true;
   private logger = createPlip({
-    enableEmojis: true,
-    enableColors: true,
+    enableColors: this.colorsEnabled,
     enabledLevels: ['info', 'warn', 'error']
   });
-  
+
   setDebugMode(enabled: boolean) {
-    const levels = enabled 
+    const levels: LogLevel[] = enabled 
       ? ['verbose', 'debug', 'info', 'success', 'warn', 'error', 'trace']
       : ['info', 'warn', 'error'];
     
-    this.logger = createPlip({
-      enableEmojis: this.logger.config?.enableEmojis ?? true,
-      enableColors: this.logger.config?.enableColors ?? true,
-      enabledLevels: levels
-    });
+    // levels() derives a new logger with a different level set
+    this.logger = this.logger.levels(...levels);
   }
   
   setProductionMode(enabled: boolean) {
+    this.colorsEnabled = !enabled;
     this.logger = createPlip({
-      enableEmojis: !enabled,
-      enableColors: !enabled,
+      enableColors: this.colorsEnabled,
       enabledLevels: enabled 
         ? ['warn', 'error', 'trace']
         : ['info', 'success', 'warn', 'error', 'trace']
@@ -792,7 +757,6 @@ adaptiveLogger.log.debug("Debug mode enabled");
 ```typescript
 const createStructuredLogger = (service: string, version: string) => {
   const logger = createPlip({
-    enableEmojis: false,
     enableColors: true,
     enabledLevels: ['info', 'warn', 'error', 'trace']
   });
@@ -827,7 +791,6 @@ serviceLogger.info("Service started", { port: 3000 });
 ```typescript
 const createMiddlewareLogger = (context: string) => {
   const logger = createPlip({
-    enableEmojis: true,
     enableColors: true,
     enabledLevels: ['info', 'warn', 'error']
   });

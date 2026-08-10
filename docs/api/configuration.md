@@ -9,17 +9,18 @@ The main configuration interface for customizing logger behavior.
 ```typescript
 interface PlipConfig {
   silent?: boolean;
-  enableEmojis?: boolean;
   enableColors?: boolean;
   enableSyntaxHighlighting?: boolean;
   theme?: Partial<PlipTheme>;
-  enabledLevels?: LogLevel[];
+  enabledLevels?: LogLevel[]; // Explicit allowlist of levels
+  minLevel?: LogLevel; // Severity threshold; levels ranked below it are dropped
   devOnly?: boolean;
   // Enhanced configuration for better SSR/CSR support
   enableTimestamp?: boolean; // For server logs with timing information
   enableStructuredOutput?: boolean; // For JSON-formatted output suitable for log aggregation
   includeRequestId?: boolean; // For request correlation in SSR
   includeContext?: boolean; // Whether to include context by default
+  onError?: LogErrorHandler; // Called when a transport throws or rejects
 }
 ```
 
@@ -37,24 +38,6 @@ Controls whether all logging output is suppressed.
 // Silent logger (no output)
 const logger = createPlip({ silent: true });
 logger.info("This won't be displayed"); // No output
-```
-
-#### `enableEmojis?: boolean`
-
-Controls whether emoji prefixes are displayed in log messages.
-
-- **Type**: `boolean | undefined`
-- **Default**: `true` (CSR), `false` (SSR)
-- **Description**: When `true`, each log level displays its corresponding emoji (🫧, ⚠️, 💥, etc.)
-
-```typescript
-// Enable emojis (default for CSR)
-const logger = createPlip({ enableEmojis: true });
-logger.info("Hello!"); // Output: 🫧 [INFO] Hello!
-
-// Disable emojis (default for SSR)
-const cleanLogger = createPlip({ enableEmojis: false });
-cleanLogger.info("Hello!"); // Output: [INFO] Hello!
 ```
 
 #### `enableColors?: boolean`
@@ -92,19 +75,31 @@ logger.info("User data:", { id: 123, name: "John" });
 
 #### `theme?: Partial<PlipTheme>`
 
-Custom theme configuration for colors and emojis.
+Custom theme configuration for colors.
 
 - **Type**: `Partial<PlipTheme> | undefined`
 - **Default**: Default theme
-- **Description**: Override default colors and emojis for log levels
+- **Description**: Override default colors for log levels
 
 ```typescript
+import { createPlip, colors } from '@ru-dr/plip';
+
 const logger = createPlip({
   theme: {
-    emojis: { info: '📝', error: '🚨' },
-    colors: { info: 'blue', error: 'red' }
+    colors: { info: colors.blue, error: colors.red }
   }
 });
+```
+
+The `PlipTheme` type:
+
+```typescript
+type ColorFn = (text: string) => string;
+
+interface PlipTheme {
+  colors: Record<LogLevel, ColorFn>;
+  dimColors: Record<LogLevel, ColorFn>;
+}
 ```
 
 #### `devOnly?: boolean`
@@ -131,7 +126,7 @@ Controls whether timestamps are included in log messages.
 ```typescript
 const logger = createPlip({ enableTimestamp: true });
 logger.info("Server started");
-// Output: [2024-01-15T10:30:00.000Z] 🫧 [INFO] Server started
+// Output: 2024-01-15T10:30:00.000Z [INFO] Server started
 ```
 
 #### `enableStructuredOutput?: boolean`
@@ -145,21 +140,28 @@ Controls whether logs are formatted as structured JSON.
 ```typescript
 const logger = createPlip({ enableStructuredOutput: true });
 logger.info("User action", { userId: 123 });
-// Output: {"level":"info","message":"User action","context":{"userId":123},"timestamp":"..."}
+// Output: {"timestamp":"2024-01-15T10:30:00.000Z","level":"info","message":"User action {\n  \"userId\": 123\n}"}
 ```
 
 #### `includeRequestId?: boolean`
 
-Controls whether request IDs are automatically generated and included.
+Controls whether request IDs are included on log entries.
 
 - **Type**: `boolean | undefined`
 - **Default**: `false` (CSR), `true` (SSR)
-- **Description**: When `true`, automatically generates and includes request correlation IDs
+- **Description**: When `true`, every entry carries a `requestId` for correlation
+
+The id is resolved as follows: a `requestId` in the logger's context always wins, so you can correlate a real request by attaching it yourself. If the context has no `requestId`, Plip generates one **per logger instance** — using `crypto.randomUUID()` where available — and reuses it for every entry from that logger.
 
 ```typescript
 const logger = createPlip({ includeRequestId: true });
+
+// Generated once for this logger instance and reused
 logger.info("Processing request");
-// Output includes requestId for correlation
+
+// A per-request id: create a child logger for each request
+const requestLogger = logger.child({ requestId: req.headers['x-request-id'] });
+requestLogger.info("Handling request"); // Uses the id from context
 ```
 
 #### `includeContext?: boolean`
@@ -167,7 +169,7 @@ logger.info("Processing request");
 Controls whether context data is included by default.
 
 - **Type**: `boolean | undefined`
-- **Default**: `false` (CSR), `true` (SSR)
+- **Default**: `true`
 - **Description**: When `true`, includes contextual information in log entries
 
 ```typescript
@@ -178,12 +180,12 @@ logger.withContext({ userId: 123 }).info("User logged in");
 
 **Color Scheme**:
 - `verbose`: Gray
-- `debug`: Blue  
+- `debug`: Magenta
 - `info`: Cyan
 - `success`: Green
 - `warn`: Yellow
 - `error`: Red
-- `trace`: Cyan
+- `trace`: Blue
 
 #### `enabledLevels?: LogLevel[]`
 
@@ -196,23 +198,82 @@ Specifies which log levels are active and will produce output.
 ```typescript
 // Only show warnings and errors
 const prodLogger = createPlip({
-  enabledLevels: ['warn', 'error', 'fatal']
+  enabledLevels: ['warn', 'error']
 });
 
 // Development logger with all levels
 const devLogger = createPlip({
-  enabledLevels: ['verbose', 'debug', 'info', 'success', 'warn', 'error', 'fatal']
+  enabledLevels: ['verbose', 'debug', 'info', 'success', 'warn', 'error', 'trace']
 });
 
 // Minimal logging
 const minimalLogger = createPlip({
-  enabledLevels: ['error', 'fatal']
+  enabledLevels: ['error']
 });
 ```
 
+`enabledLevels` is not hierarchical: listing `error` does not implicitly enable `warn`. For the conventional "warn and above" behaviour, use `minLevel`.
+
+#### `minLevel?: LogLevel`
+
+A severity threshold. Levels ranked below it are dropped.
+
+- **Type**: `LogLevel | undefined`
+- **Default**: unset (no threshold)
+- **Description**: Combined with `enabledLevels` when both are set — a message must pass both filters
+
+```typescript
+// warn and above
+const logger = createPlip({ minLevel: 'warn' });
+
+logger.warn("Retrying");         // Logged
+logger.info("Request received"); // Dropped
+
+// Intersects with enabledLevels
+const intersected = createPlip({
+  enabledLevels: ['debug', 'info', 'warn', 'error'],
+  minLevel: 'warn'
+});
+// Only warn and error survive
+```
+
+The severity ranking is `trace` 10, `verbose` 20, `debug` 30, `info` 40, `success` 40, `warn` 50, `error` 60. `success` shares a rank with `info` on purpose. See [Log Levels](/guide/log-levels) for the full explanation.
+
+#### `onError?: LogErrorHandler`
+
+Receives transport delivery failures.
+
+- **Type**: `((error: unknown, transportName: string) => void) | undefined`
+- **Default**: unset — failures are reported with `console.error`
+- **Description**: Called whenever a transport throws or rejects while handling an entry
+
+Transport failures are never swallowed. A failing transport does not stop the others, and it does not fail silently either.
+
+```typescript
+const logger = createPlip({
+  onError: (error, transportName) => {
+    metrics.increment('log_transport_failure', { transport: transportName });
+  }
+});
+```
+
+A transport can also carry its own handler via `TransportConfig.onError`, which takes precedence for failures it reports itself:
+
+```typescript
+import { RemoteTransport } from '@ru-dr/plip';
+
+logger.addTransport(new RemoteTransport({
+  name: 'remote',
+  url: 'https://logs.example.com/api/logs',
+  onError: (error) => console.warn('Remote log delivery failed:', error)
+}));
+```
+
+Keep the handler cheap and non-throwing, and never log back through the same logger — that risks an error loop.
+
 ## LogLevel Type
 
-Enumeration of available log levels in order of severity.
+Union type of the available log levels.
 
 ```typescript
 type LogLevel = 'verbose' | 'debug' | 'info' | 'success' | 'warn' | 'error' | 'trace';
@@ -241,28 +302,24 @@ const createEnvironmentConfig = (): PlipConfig => {
   switch (env) {
     case 'production':
       return {
-        enableEmojis: false,
         enableColors: false,
-        enabledLevels: ['warn', 'error', 'fatal']
+        enabledLevels: ['warn', 'error']
       };
       
     case 'development':
       return {
-        enableEmojis: true,
         enableColors: true,
-        enabledLevels: ['verbose', 'debug', 'info', 'success', 'warn', 'error', 'fatal']
+        enabledLevels: ['verbose', 'debug', 'info', 'success', 'warn', 'error', 'trace']
       };
       
     case 'test':
       return {
-        enableEmojis: false,
         enableColors: false,
-        enabledLevels: ['error', 'fatal']
+        enabledLevels: ['error']
       };
       
     default:
       return {
-        enableEmojis: true,
         enableColors: true,
         enabledLevels: ['info', 'warn', 'error']
       };
@@ -277,10 +334,9 @@ const logger = createPlip(createEnvironmentConfig());
 ```typescript
 const createFeatureConfig = (): PlipConfig => {
   return {
-    enableEmojis: process.env.PLIP_EMOJIS !== 'false',
     enableColors: process.env.PLIP_COLORS !== 'false',
     enabledLevels: process.env.PLIP_VERBOSE === 'true'
-      ? ['verbose', 'debug', 'info', 'success', 'warn', 'error', 'fatal']
+      ? ['verbose', 'debug', 'info', 'success', 'warn', 'error', 'trace']
       : ['info', 'warn', 'error']
   };
 };
@@ -297,11 +353,10 @@ const createConditionalConfig = (options: {
   const { isDevelopment, isCI, isDocker } = options;
   
   return {
-    enableEmojis: isDevelopment && !isCI,
     enableColors: !isCI && !isDocker,
     enabledLevels: isDevelopment
-      ? ['verbose', 'debug', 'info', 'success', 'warn', 'error', 'fatal']
-      : ['info', 'warn', 'error', 'fatal']
+      ? ['verbose', 'debug', 'info', 'success', 'warn', 'error', 'trace']
+      : ['info', 'warn', 'error']
   };
 };
 ```
@@ -311,29 +366,35 @@ const createConditionalConfig = (options: {
 When no configuration is provided, Plip uses these defaults:
 
 ```typescript
-const DEFAULT_CONFIG: PlipConfig = {
-  enableEmojis: true,
-  enableColors: undefined, // Auto-detect
-  enabledLevels: ['verbose', 'debug', 'info', 'success', 'warn', 'error', 'fatal']
+const DEFAULT_CONFIG: ResolvedPlipConfig = {
+  silent: false,
+  enableColors: true, // Combined with terminal color auto-detection
+  enableSyntaxHighlighting: true,
+  theme: {},
+  enabledLevels: ['info', 'warn', 'error', 'success', 'debug', 'trace', 'verbose'],
+  devOnly: false,
+  enableTimestamp: false,
+  enableStructuredOutput: false,
+  includeRequestId: false,
+  includeContext: true
 };
 ```
 
-## Configuration Validation
+This object is exported as `defaultConfig`. `minLevel` and `onError` are absent because "unset" is meaningful for both: no threshold, and `console.error` reporting respectively. That is what `ResolvedPlipConfig` expresses — every presentation option resolved, those two still optional.
 
-Plip automatically validates and sanitizes configuration:
+## Configuration Handling
+
+Plip does not validate configuration at runtime — the values you pass are used as given, so rely on TypeScript to catch mistakes:
 
 ```typescript
-// Invalid configurations are handled gracefully
-const logger1 = createPlip({
-  enabledLevels: [] // Empty array -> falls back to default
+// An empty array disables every level (it is not replaced by a default)
+const silentByLevels = createPlip({
+  enabledLevels: []
 });
 
-const logger2 = createPlip({
-  enabledLevels: ['invalid'] as any // Invalid level -> falls back to default
-});
-
-const logger3 = createPlip({
-  enableEmojis: 'yes' as any // Invalid type -> converts to boolean
+// Only keys of PlipConfig are read; unknown keys are ignored
+const logger = createPlip({
+  enabledLevels: ['info', 'warn', 'error']
 });
 ```
 
@@ -343,9 +404,8 @@ const logger3 = createPlip({
 
 ```typescript
 const microserviceConfig: PlipConfig = {
-  enableEmojis: false,  // Clean for container logs
   enableColors: false,  // Better for log aggregation
-  enabledLevels: ['info', 'warn', 'error', 'fatal']
+  enabledLevels: ['info', 'warn', 'error']
 };
 
 const serviceLogger = createPlip(microserviceConfig);
@@ -355,7 +415,6 @@ const serviceLogger = createPlip(microserviceConfig);
 
 ```typescript
 const debugConfig: PlipConfig = {
-  enableEmojis: true,
   enableColors: true,
   enabledLevels: ['verbose', 'debug'] // Only debug information
 };
@@ -367,7 +426,6 @@ const debugLogger = createPlip(debugConfig);
 
 ```typescript
 const cliConfig: PlipConfig = {
-  enableEmojis: true,   // Visual feedback for users
   enableColors: true,   // Better UX in terminal
   enabledLevels: ['info', 'success', 'warn', 'error'] // Skip debug noise
 };
@@ -379,11 +437,10 @@ const cliLogger = createPlip(cliConfig);
 
 ```typescript
 const serverConfig: PlipConfig = {
-  enableEmojis: process.env.NODE_ENV === 'development',
   enableColors: process.stdout.isTTY,
   enabledLevels: process.env.NODE_ENV === 'production'
-    ? ['info', 'warn', 'error', 'fatal']
-    : ['debug', 'info', 'success', 'warn', 'error', 'fatal']
+    ? ['info', 'warn', 'error']
+    : ['debug', 'info', 'success', 'warn', 'error']
 };
 
 const serverLogger = createPlip(serverConfig);
@@ -401,9 +458,8 @@ const isTest = process.env.NODE_ENV === 'test';
 const isTTY = process.stdout.isTTY;
 
 const config: PlipConfig = {
-  enableEmojis: !isProd && !isTest,
   enableColors: isTTY && !isTest,
-  enabledLevels: isProd ? ['warn', 'error', 'fatal'] : undefined
+  enabledLevels: isProd ? ['warn', 'error'] : undefined
 };
 ```
 
@@ -415,21 +471,18 @@ Establish team-wide configuration standards:
 // config/logger.ts
 export const STANDARD_CONFIGS = {
   development: {
-    enableEmojis: true,
     enableColors: true,
-    enabledLevels: ['verbose', 'debug', 'info', 'success', 'warn', 'error', 'fatal']
+    enabledLevels: ['verbose', 'debug', 'info', 'success', 'warn', 'error', 'trace']
   } as PlipConfig,
   
   production: {
-    enableEmojis: false,
     enableColors: false,
-    enabledLevels: ['info', 'warn', 'error', 'fatal']
+    enabledLevels: ['info', 'warn', 'error']
   } as PlipConfig,
   
   testing: {
-    enableEmojis: false,
     enableColors: false,
-    enabledLevels: ['error', 'fatal']
+    enabledLevels: ['error']
   } as PlipConfig
 } as const;
 ```
@@ -449,8 +502,6 @@ const getLevelsForEnvironment = (env: string): LogLevel[] => {
       return ['warn', 'error', 'trace'];
     default: 
       return ['info', 'warn', 'error'];
-  }
-};
   }
 };
 ```
@@ -474,12 +525,12 @@ const customSSRLogger = createSSRLogger({
 
 // SSR config defaults:
 const ssrDefaults = {
-  enableEmojis: false,      // Clean for server logs
-  enableColors: false,      // Conditional based on environment
-  enableTimestamp: true,    // Important for server logs
-  includeRequestId: true,   // For request correlation
-  includeContext: true,     // For debugging context
-  enableStructuredOutput: false
+  enableColors: !isProduction,        // Colors in development only
+  enableTimestamp: true,              // Important for server logs
+  includeRequestId: true,             // For request correlation
+  includeContext: true,               // For debugging context
+  enableStructuredOutput: isProduction, // JSON lines in production
+  enabledLevels: isProduction ? [] : allLevels // Opt in explicitly in production
 };
 ```
 
@@ -498,12 +549,12 @@ const customCSRLogger = createCSRLogger({
 
 // CSR config defaults:
 const csrDefaults = {
-  enableEmojis: true,       // Rich visual experience
   enableColors: true,       // Colorful browser console
   enableTimestamp: false,   // Browser already shows time
   includeRequestId: false,  // Not needed in client
-  includeContext: false,    // Less clutter
-  enableSyntaxHighlighting: true
+  includeContext: true,     // Useful for debugging
+  enableSyntaxHighlighting: true,
+  enabledLevels: isProduction ? [] : allLevels // Opt in explicitly in production
 };
 ```
 
@@ -534,31 +585,31 @@ import {
 // Console transport (default)
 const consoleTransport = new ConsoleTransport({
   name: 'console',
-  level: 'info'
+  level: ['info', 'warn', 'error']
 });
 
 // File transport for server environments
 const fileTransport = new FileTransport({
   name: 'file',
-  level: 'warn',
-  filePath: '/var/log/app.log',
-  maxFileSize: 10 * 1024 * 1024, // 10MB
+  level: ['warn', 'error'],
+  filename: '/var/log/app.log',
+  maxSize: 10 * 1024 * 1024, // 10MB
   maxFiles: 5
 });
 
 // Browser transport for client-side
 const browserTransport = new BrowserTransport({
   name: 'browser',
-  level: 'debug',
-  groupSimilar: true,
-  collapseGroups: false
+  level: ['debug', 'info', 'warn', 'error'],
+  useLocalStorage: true,
+  enableConsoleGroup: true
 });
 
 // Remote transport for log aggregation
 const remoteTransport = new RemoteTransport({
   name: 'remote',
-  level: 'error',
-  endpoint: 'https://logs.example.com/api/logs',
+  level: ['error'],
+  url: 'https://logs.example.com/api/logs',
   apiKey: 'your-api-key',
   batchSize: 100,
   flushInterval: 5000
@@ -568,9 +619,9 @@ const remoteTransport = new RemoteTransport({
 ### Adding Transports to Logger
 
 ```typescript
-import { PlipLogger } from '@ru-dr/plip';
+import { createPlip } from '@ru-dr/plip';
 
-const logger = new PlipLogger();
+const logger = createPlip();
 
 // Add multiple transports
 logger.addTransport(consoleTransport);

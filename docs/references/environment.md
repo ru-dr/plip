@@ -24,11 +24,7 @@ Forces color output even when not connected to a TTY.
 FORCE_COLOR=1 node app.js
 ```
 
-**Values:**
-- `0` - Force disable colors
-- `1` - Force enable colors  
-- `2` - Force enable colors with 256-color support
-- `3` - Force enable colors with 16m-color support
+**Note:** Plip only checks whether `FORCE_COLOR` is set to a non-empty value. Any non-empty value (including `0`) enables colors. To disable colors, use `NO_COLOR` or set `enableColors: false`.
 
 ### TERM
 
@@ -39,22 +35,23 @@ TERM=xterm-256color
 ```
 
 **Common values:**
-- `dumb` - No color support
-- `xterm` - Basic color support
-- `xterm-256color` - 256-color support
-- `screen` - Screen/tmux support
+- `dumb` - Treated as no color support
+- `xterm-256color` - Treated as color capable (contains `color`/`256`)
+- `xterm`, `screen` - Not recognized by name; detection falls back to the TTY check
+
+**Note:** `TERM` is only consulted when `process.stdout.isTTY` is not a boolean, since the TTY check takes precedence.
 
 ## Development Environment Variables
 
 ### NODE_ENV
 
-Affects default behavior in some cases.
+Determines whether Plip considers the process to be in development or production.
 
 ```bash
 NODE_ENV=production
 ```
 
-**Effect:** When set to `production`, some terminal features may behave differently for performance.
+**Effect:** `isProduction()` returns `true` only when `NODE_ENV === "production"`; `isDevelopment()` returns `true` otherwise. This drives the `devOnly` option (logs are suppressed outside development) and the SSR/CSR presets, which disable colors and all levels by default in production.
 
 ### CI
 
@@ -64,35 +61,21 @@ Indicates running in a Continuous Integration environment.
 CI=true
 ```
 
-**Effect:** May affect color output and terminal detection in CI environments.
-
-### TERM_PROGRAM
-
-Identifies the terminal program being used.
-
-```bash
-TERM_PROGRAM=iTerm.app
-```
-
-**Common values:**
-- `iTerm.app` - iTerm2
-- `Terminal.app` - macOS Terminal
-- `vscode` - VS Code integrated terminal
+**Effect:** When `CI` is set *and* one of `GITHUB_ACTIONS`, `GITLAB_CI`, `CIRCLECI` or `TRAVIS` is also set, color support is assumed. `CI` on its own has no effect.
 
 ## Configuration via Code
 
 Since Plip doesn't use custom environment variables, configure the logger programmatically:
 
 ```javascript
-import { logger } from 'plip';
+import { createPlip } from '@ru-dr/plip';
 
 // Configure colors based on environment
 const isProduction = process.env.NODE_ENV === 'production';
 const disableColors = process.env.NO_COLOR || isProduction;
 
-logger.config({
+const logger = createPlip({
   enableColors: !disableColors,
-  enableEmojis: !isProduction,
   silent: process.env.NODE_ENV === 'test'
 });
 ```
@@ -103,11 +86,10 @@ logger.config({
 
 ```javascript
 // config/development.js
-import { logger } from 'plip';
+import { createPlip } from '@ru-dr/plip';
 
-logger.config({
+export const logger = createPlip({
   enableColors: true,
-  enableEmojis: true,
   enableSyntaxHighlighting: true,
   enabledLevels: ['verbose', 'debug', 'info', 'success', 'warn', 'error', 'trace']
 });
@@ -117,11 +99,10 @@ logger.config({
 
 ```javascript
 // config/production.js
-import { logger } from 'plip';
+import { createPlip } from '@ru-dr/plip';
 
-logger.config({
+export const logger = createPlip({
   enableColors: false,
-  enableEmojis: false,
   enableSyntaxHighlighting: false,
   enabledLevels: ['info', 'success', 'warn', 'error']
 });
@@ -131,9 +112,9 @@ logger.config({
 
 ```javascript
 // config/test.js
-import { logger } from 'plip';
+import { createPlip } from '@ru-dr/plip';
 
-logger.config({
+export const logger = createPlip({
   silent: true // Disable all logging during tests
 });
 ```
@@ -178,12 +159,12 @@ spec:
 Always check for standard environment variables:
 
 ```javascript
-import { logger } from 'plip';
+import { createPlip } from '@ru-dr/plip';
 
 const shouldUseColors = !process.env.NO_COLOR && 
-                       (process.env.FORCE_COLOR || process.stdout.isTTY);
+                       !!(process.env.FORCE_COLOR || process.stdout.isTTY);
 
-logger.config({
+const logger = createPlip({
   enableColors: shouldUseColors
 });
 ```
@@ -195,10 +176,9 @@ const isDevelopment = process.env.NODE_ENV === 'development';
 const isTest = process.env.NODE_ENV === 'test';
 const isCI = !!process.env.CI;
 
-logger.config({
+const logger = createPlip({
   silent: isTest,
-  enableColors: isDevelopment && !isCI,
-  enableEmojis: isDevelopment
+  enableColors: isDevelopment && !isCI
 });
 ```
 
@@ -209,7 +189,7 @@ logger.config({
 const hasColorSupport = process.env.TERM !== 'dumb' && 
                        !process.env.NO_COLOR;
 
-logger.config({
+const logger = createPlip({
   enableColors: hasColorSupport,
   enableSyntaxHighlighting: hasColorSupport
 });

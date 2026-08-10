@@ -1,556 +1,222 @@
-# Error Codes
+# Errors & Troubleshooting
 
-Plip Logger uses a comprehensive error code system to help identify and troubleshoot issues. This reference provides detailed information about all error codes, their causes, and solutions.
+Plip Logger does not define a numeric error-code system. Instead, it is designed to never break your application because of logging: transports catch their own failures and report them on the native `console`, prefixed with the transport name. This reference lists the diagnostic messages the library can emit, what causes them, and how to resolve them.
 
-## Error Code Format
+## How Plip Reports Problems
 
-Error codes follow the format: `PLIP_E{category}{number}`
+- Logging calls (`info`, `warn`, `error`, ...) do not throw. A failing transport is isolated.
+- Transport failures are written to the native `console` with a `TransportName:` prefix.
+- There is no error event emitter, no error codes, and no configuration file loading, so none of the classic "invalid config file" failures apply.
 
-- **Category**: 2-digit code representing error category
-- **Number**: 3-digit sequential number
+## File Transport Messages
 
-Example: `PLIP_E01001` (Configuration error #001)
+### `FileTransport: File writing not supported in this environment`
 
-## Error Categories
+**Cause:** A `FileTransport` was attached in a non-Node runtime (browser, edge worker, Deno without Node compatibility). File writing requires Node's `fs`.
 
-| Category | Code | Description |
-|----------|------|-------------|
-| Configuration | 01 | Configuration-related errors |
-| File System | 02 | File operations and permissions |
-| Network | 03 | Network and remote logging |
-| Validation | 04 | Input validation errors |
-| Performance | 05 | Performance and resource errors |
-| Integration | 06 | Framework integration errors |
-| Security | 07 | Security and access errors |
-| Runtime | 08 | Runtime execution errors |
-
-## Configuration Errors (01xxx)
-
-### PLIP_E01001: Invalid Configuration File
-
-**Cause:** Configuration file contains invalid JSON or YAML syntax.
+**Solutions:**
+1. Only attach `FileTransport` when running in Node
+2. Use `BrowserTransport` or `RemoteTransport` in the browser
+3. Guard the attachment with a runtime check
 
 ```javascript
-// Error example
-{
-  "code": "PLIP_E01001",
-  "message": "Invalid configuration file: Unexpected token '}' at position 45",
-  "file": "/app/.pliprc.json"
+import { createPlip, FileTransport, isNode } from '@ru-dr/plip';
+
+const logger = createPlip();
+
+if (isNode()) {
+  logger.addTransport(new FileTransport({
+    name: 'file',
+    filename: './logs/app.log'
+  }));
 }
 ```
 
+### `FileTransport: Failed to write to file: <error>`
+
+**Cause:** The underlying `fs` operation failed. The original error is included, most often `EACCES` (permission denied), `EROFS` (read-only filesystem) or `ENOSPC` (out of disk space).
+
 **Solutions:**
-1. Validate JSON/YAML syntax
-2. Check for trailing commas
-3. Verify file encoding (UTF-8)
+1. Check file and directory permissions: `chmod 644 /var/log/app.log`
+2. Run the process as a user that can write the target directory
+3. Free disk space, or point `filename` at a writable path
 
-### PLIP_E01002: Unknown Configuration Option
+Note that the transport creates missing parent directories automatically, so a missing directory is not itself an error.
 
-**Cause:** Configuration contains unrecognized options.
+### Rotation Not Happening
+
+**Cause:** `maxSize` was omitted. Without it, the transport never rotates.
+
+**Solutions:**
+1. Set `maxSize` in bytes (not a string like `'10MB'`)
+2. Set `maxFiles` to cap the number of rotated files (defaults to 5)
 
 ```javascript
-{
-  "code": "PLIP_E01002",
-  "message": "Unknown configuration option: 'invalidOption'",
-  "option": "invalidOption",
-  "suggestions": ["logLevel", "format", "outputs"]
-}
+new FileTransport({
+  name: 'file',
+  filename: './logs/app.log',
+  maxSize: 10 * 1024 * 1024,
+  maxFiles: 5
+});
 ```
 
+## Remote Transport Messages
+
+### `RemoteTransport: Failed to send logs: <error>`
+
+**Cause:** The HTTP request to `url` failed. The wrapped error distinguishes the case:
+
+- `HTTP 401: Unauthorized` / `HTTP 403: Forbidden` - bad or missing `apiKey`
+- `HTTP 429: Too Many Requests` - the endpoint is rate limiting the batches
+- A `fetch` network error - the endpoint is unreachable or DNS fails
+- An `AbortError` - the request exceeded the configured `timeout`
+
 **Solutions:**
-1. Check configuration documentation
-2. Use suggested alternatives
-3. Remove unsupported options
+1. Verify `url`, `apiKey` and any custom `headers`
+2. Increase `batchSize` or `flushInterval` to send fewer, larger requests
+3. Increase `timeout`, or omit it to disable the abort behaviour
+4. Check outbound network access and firewall rules
 
-### PLIP_E01003: Invalid Log Level
+Failed batches are re-queued ahead of newer entries so ordering survives a retry. The internal buffer is capped at 1000 entries, so a persistently failing endpoint drops the oldest logs rather than leaking memory.
 
-**Cause:** Log level value is not recognized.
+### Logs Arrive Late or Not At All
+
+**Cause:** The remote transport batches. Entries stay buffered until `batchSize` is reached or `flushInterval` elapses, and the flush timer is `unref`'d so it never keeps a Node process alive.
+
+**Solutions:**
+1. Call `await transport.forceFlush()` before a short-lived process exits
+2. Call `await transport.close()` during shutdown to flush and stop the timer
+3. Inspect `transport.getBatchSize()` to see how many entries are pending
+
+## Browser Transport Messages
+
+### `BrowserTransport: Failed to store log in localStorage: <error>`
+
+**Cause:** `localStorage` rejected the write, usually a `QuotaExceededError`, or storage is unavailable (private browsing, disabled cookies, sandboxed iframe).
+
+**Solutions:**
+1. Lower `maxStorageSize` so fewer entries are retained
+2. Set `useLocalStorage: false` and rely on console output or a remote transport
+3. Clear the stored logs periodically
+
+### `BrowserTransport: Failed to retrieve logs from localStorage: <error>` / `... Failed to clear logs from localStorage: <error>`
+
+**Cause:** The stored value is unreadable or unparsable, or storage access is blocked.
+
+**Solutions:**
+1. Remove the stale key (`storageKey`, default `plip-logs`) and let the transport recreate it
+2. Verify the page has access to `localStorage` in its current context
+
+## Configuration Problems
+
+Plip validates nothing at construction time: unknown keys are simply ignored, and `createPlip()` never throws. That means configuration mistakes show up as missing or unexpected output rather than as errors.
+
+### No Output At All
+
+**Causes and solutions:**
+1. `silent: true` is set - remove it, or create the logger without it
+2. `devOnly: true` while `NODE_ENV` is `production` - remove `devOnly` for production logging
+3. The level is not in `enabledLevels` - add it, or use `logger.levels('info', 'warn', 'error')`
 
 ```javascript
-{
-  "code": "PLIP_E01003",
-  "message": "Invalid log level: 'verbose'",
-  "provided": "verbose",
-  "valid": ["debug", "info", "warn", "error", "trace"]
-}
+import { createPlip } from '@ru-dr/plip';
+
+const logger = createPlip({
+  enabledLevels: ['info', 'warn', 'error', 'success', 'debug']
+});
+
+logger.info('Application started');
+// [INFO] Application started
 ```
 
-**Solutions:**
-1. Use valid log level values
-2. Check environment variables
-3. Verify configuration file
+### Unrecognised Configuration Keys
 
-### PLIP_E01004: Circular Configuration Reference
+The only supported keys are `silent`, `enableColors`, `enableSyntaxHighlighting`, `theme`, `enabledLevels`, `devOnly`, `enableTimestamp`, `enableStructuredOutput`, `includeRequestId` and `includeContext`. Anything else, including `level`, `format`, `timestamp` or `colorize`, is ignored silently. See the [Configuration API](/api/configuration) for the full list.
 
-**Cause:** Configuration file references create a circular dependency.
+### Invalid Log Level
 
-```javascript
-{
-  "code": "PLIP_E01004",
-  "message": "Circular reference detected in configuration",
-  "path": "outputs.file.config.extends"
-}
-```
+`LogLevel` is the string union `'info' | 'warn' | 'error' | 'success' | 'debug' | 'trace' | 'verbose'`. Any other value in `enabledLevels` simply never matches, so the corresponding output disappears. TypeScript catches this at compile time.
 
-**Solutions:**
-1. Remove circular references
-2. Flatten configuration structure
-3. Use absolute paths for extends
+### Missing Colors
 
-## File System Errors (02xxx)
+**Causes and solutions:**
+1. `NO_COLOR` is set, or `TERM=dumb` - unset it, or pass `enableColors: true`
+2. Output is piped to a non-TTY, or a CI environment was detected - set `FORCE_COLOR`
+3. `enableColors: false` is set in the configuration - use `logger.withColors(true)`
 
-### PLIP_E02001: Log File Permission Denied
-
-**Cause:** Insufficient permissions to write to log file.
-
-```javascript
-{
-  "code": "PLIP_E02001",
-  "message": "Permission denied writing to log file",
-  "file": "/var/log/app.log",
-  "permissions": "r--r--r--"
-}
-```
-
-**Solutions:**
-1. Check file permissions: `chmod 644 /var/log/app.log`
-2. Verify directory permissions
-3. Run with appropriate user privileges
-
-### PLIP_E02002: Log Directory Not Found
-
-**Cause:** Target directory for log files doesn't exist.
-
-```javascript
-{
-  "code": "PLIP_E02002",
-  "message": "Log directory does not exist",
-  "directory": "/var/log/myapp",
-  "autoCreate": false
-}
-```
-
-**Solutions:**
-1. Create directory: `mkdir -p /var/log/myapp`
-2. Enable auto-creation in configuration
-3. Use existing directory path
-
-### PLIP_E02003: Disk Space Insufficient
-
-**Cause:** Not enough disk space for log files.
-
-```javascript
-{
-  "code": "PLIP_E02003",
-  "message": "Insufficient disk space for logging",
-  "required": "100MB",
-  "available": "50MB",
-  "path": "/var/log"
-}
-```
-
-**Solutions:**
-1. Free up disk space
-2. Configure log rotation
-3. Reduce log retention period
-
-### PLIP_E02004: Log File Rotation Failed
-
-**Cause:** Error during log file rotation process.
-
-```javascript
-{
-  "code": "PLIP_E02004",
-  "message": "Log rotation failed",
-  "file": "/var/log/app.log.1",
-  "reason": "File in use by another process"
-}
-```
-
-**Solutions:**
-1. Check file locks
-2. Verify rotation configuration
-3. Restart application if necessary
-
-## Network Errors (03xxx)
-
-### PLIP_E03001: Remote Log Server Unreachable
-
-**Cause:** Cannot connect to remote logging server.
-
-```javascript
-{
-  "code": "PLIP_E03001",
-  "message": "Remote log server unreachable",
-  "server": "logs.example.com:514",
-  "timeout": 5000
-}
-```
-
-**Solutions:**
-1. Check network connectivity
-2. Verify server address and port
-3. Check firewall settings
-
-### PLIP_E03002: Authentication Failed
-
-**Cause:** Authentication to remote log server failed.
-
-```javascript
-{
-  "code": "PLIP_E03002",
-  "message": "Authentication failed for remote logging",
-  "server": "logs.example.com",
-  "method": "API_KEY"
-}
-```
-
-**Solutions:**
-1. Verify API key/credentials
-2. Check authentication method
-3. Ensure credentials are not expired
-
-### PLIP_E03003: Rate Limit Exceeded
-
-**Cause:** Too many log messages sent to remote server.
-
-```javascript
-{
-  "code": "PLIP_E03003",
-  "message": "Rate limit exceeded for remote logging",
-  "limit": "1000/hour",
-  "current": 1500
-}
-```
-
-**Solutions:**
-1. Implement local buffering
-2. Reduce log frequency
-3. Upgrade service plan
-
-## Validation Errors (04xxx)
-
-### PLIP_E04001: Invalid Log Message Format
-
-**Cause:** Log message doesn't match expected format.
-
-```javascript
-{
-  "code": "PLIP_E04001",
-  "message": "Invalid log message format",
-  "expected": "string|object",
-  "received": "function"
-}
-```
-
-**Solutions:**
-1. Use string or object messages
-2. Serialize complex objects
-3. Check message transformation
-
-### PLIP_E04002: Message Size Exceeded
-
-**Cause:** Log message exceeds maximum size limit.
-
-```javascript
-{
-  "code": "PLIP_E04002",
-  "message": "Log message size exceeded",
-  "size": "1.5MB",
-  "limit": "1MB"
-}
-```
-
-**Solutions:**
-1. Reduce message size
-2. Increase size limit
-3. Split large messages
-
-### PLIP_E04003: Invalid Metadata
-
-**Cause:** Log metadata contains invalid values.
-
-```javascript
-{
-  "code": "PLIP_E04003",
-  "message": "Invalid metadata in log message",
-  "field": "timestamp",
-  "value": "invalid-date"
-}
-```
-
-**Solutions:**
-1. Validate metadata before logging
-2. Use proper data types
-3. Implement metadata sanitization
-
-## Performance Errors (05xxx)
-
-### PLIP_E05001: Memory Limit Exceeded
-
-**Cause:** Logger memory usage exceeds configured limits.
-
-```javascript
-{
-  "code": "PLIP_E05001",
-  "message": "Memory limit exceeded",
-  "used": "512MB",
-  "limit": "256MB"
-}
-```
-
-**Solutions:**
-1. Increase memory limit
-2. Enable log streaming
-3. Reduce buffer size
-
-### PLIP_E05002: Buffer Overflow
-
-**Cause:** Log buffer is full and cannot accept new messages.
-
-```javascript
-{
-  "code": "PLIP_E05002",
-  "message": "Log buffer overflow",
-  "bufferSize": 10000,
-  "droppedMessages": 150
-}
-```
-
-**Solutions:**
-1. Increase buffer size
-2. Reduce log frequency
-3. Improve processing speed
-
-### PLIP_E05003: Processing Timeout
-
-**Cause:** Log processing takes too long.
-
-```javascript
-{
-  "code": "PLIP_E05003",
-  "message": "Log processing timeout",
-  "timeout": 30000,
-  "elapsed": 45000
-}
-```
-
-**Solutions:**
-1. Increase timeout value
-2. Optimize log formatters
-3. Use asynchronous processing
-
-## Integration Errors (06xxx)
-
-### PLIP_E06001: Framework Not Supported
-
-**Cause:** Attempting to use unsupported framework integration.
-
-```javascript
-{
-  "code": "PLIP_E06001",
-  "message": "Framework not supported",
-  "framework": "koa",
-  "supported": ["express", "fastify", "nextjs", "nestjs"]
-}
-```
-
-**Solutions:**
-1. Use supported frameworks
-2. Implement custom integration
-3. Use generic logger instance
-
-### PLIP_E06002: Middleware Registration Failed
-
-**Cause:** Cannot register logging middleware.
-
-```javascript
-{
-  "code": "PLIP_E06002",
-  "message": "Middleware registration failed",
-  "framework": "express",
-  "reason": "App already listening"
-}
-```
-
-**Solutions:**
-1. Register middleware before server start
-2. Check middleware order
-3. Verify framework compatibility
-
-### PLIP_E06003: Plugin Conflict
-
-**Cause:** Conflicting plugins or middleware.
-
-```javascript
-{
-  "code": "PLIP_E06003",
-  "message": "Plugin conflict detected",
-  "conflicting": ["plip-logger", "winston-express"],
-  "solution": "Use only one logging middleware"
-}
-```
-
-**Solutions:**
-1. Remove conflicting plugins
-2. Use single logging solution
-3. Configure plugin priority
-
-## Security Errors (07xxx)
-
-### PLIP_E07001: Sensitive Data Exposure
-
-**Cause:** Sensitive data detected in log messages.
-
-```javascript
-{
-  "code": "PLIP_E07001",
-  "message": "Sensitive data detected in log",
-  "field": "password",
-  "action": "redacted"
-}
-```
-
-**Solutions:**
-1. Configure data redaction
-2. Sanitize input data
-3. Review logging practices
-
-### PLIP_E07002: Unauthorized Access
-
-**Cause:** Attempt to access restricted logging features.
-
-```javascript
-{
-  "code": "PLIP_E07002",
-  "message": "Unauthorized access to logging configuration",
-  "user": "guest",
-  "required": "admin"
-}
-```
-
-**Solutions:**
-1. Check user permissions
-2. Authenticate properly
-3. Use appropriate access controls
-
-## Runtime Errors (08xxx)
-
-### PLIP_E08001: Logger Not Initialized
-
-**Cause:** Attempting to use logger before initialization.
-
-```javascript
-{
-  "code": "PLIP_E08001",
-  "message": "Logger not initialized",
-  "method": "info"
-}
-```
-
-**Solutions:**
-1. Initialize logger before use
-2. Check initialization sequence
-3. Use singleton pattern
-
-### PLIP_E08002: Resource Cleanup Failed
-
-**Cause:** Error during logger shutdown or cleanup.
-
-```javascript
-{
-  "code": "PLIP_E08002",
-  "message": "Resource cleanup failed",
-  "resource": "file-stream",
-  "reason": "Stream already closed"
-}
-```
-
-**Solutions:**
-1. Proper shutdown sequence
-2. Check resource state
-3. Handle cleanup errors gracefully
+Plip reads only `NODE_ENV`, `NO_COLOR`, `FORCE_COLOR`, `TERM` and the CI markers (`CI`, `GITHUB_ACTIONS`, `GITLAB_CI`, `CIRCLECI`, `TRAVIS`). It does not read any `PLIP_*` variables; if you want environment-driven configuration, read the variables yourself and pass the result to `createPlip()`.
 
 ## Error Handling Patterns
 
-### Graceful Degradation
+### Logging Errors Safely
+
+Logging calls never throw, so the pattern that matters is making sure your own error objects serialise usefully:
 
 ```javascript
 try {
-  logger.info('Application started');
+  await riskyOperation();
 } catch (error) {
-  if (error.code?.startsWith('PLIP_E')) {
-    // Handle Plip Logger specific errors
-    console.error('Logging error:', error.message);
-    // Fall back to console logging
-  }
-  throw error;
+  logger.error('Operation failed', {
+    message: error.message,
+    stack: error.stack
+  });
 }
 ```
 
-### Error Recovery
+### Transport Fallback
+
+Because failures are reported on the console rather than surfaced as events, choose transports up front based on the runtime instead of reacting to errors:
 
 ```javascript
-logger.on('error', (error) => {
-  switch (error.code) {
-    case 'PLIP_E02001': // Permission denied
-      // Switch to console logging
-      logger.addOutput('console');
-      break;
-    
-    case 'PLIP_E03001': // Remote server unreachable
-      // Enable local file logging
-      logger.addOutput('file', { path: './fallback.log' });
-      break;
-    
-    default:
-      console.error('Unhandled logging error:', error);
+import { createPlip, FileTransport, BrowserTransport, isNode } from '@ru-dr/plip';
+
+const logger = createPlip();
+
+logger.addTransport(isNode()
+  ? new FileTransport({ name: 'file', filename: './logs/app.log' })
+  : new BrowserTransport({ name: 'browser' })
+);
+```
+
+### Clean Shutdown
+
+Flush buffered entries before the process exits so nothing is lost:
+
+```javascript
+process.on('SIGTERM', async () => {
+  for (const transport of logger.getTransports()) {
+    await transport.close?.();
   }
+  process.exit(0);
 });
 ```
 
-### Error Monitoring
+## Debugging
+
+### Turn Every Level On
 
 ```javascript
-const errorCounts = new Map();
-
-logger.on('error', (error) => {
-  const count = errorCounts.get(error.code) || 0;
-  errorCounts.set(error.code, count + 1);
-  
-  if (count > 10) {
-    // Alert on repeated errors
-    console.error(`Repeated error ${error.code}: ${count} occurrences`);
-  }
+const logger = createPlip({
+  enabledLevels: ['info', 'warn', 'error', 'success', 'debug', 'trace', 'verbose']
 });
 ```
 
-## Debugging Error Codes
-
-### Enable Debug Mode
-
-```bash
-export PLIP_LOG_LEVEL=debug
-export PLIP_DEBUG_ERRORS=true
-```
-
-### Error Tracing
+### Inspect the Environment
 
 ```javascript
-const logger = new Logger({
-  debug: true,
-  errorTracing: true
-});
+import { getRuntimeEnvironment, supportsColor, isDevelopment } from '@ru-dr/plip';
 
-// Will include stack traces for all errors
-logger.on('error', (error) => {
-  console.error('Error details:', {
-    code: error.code,
-    message: error.message,
-    stack: error.stack,
-    context: error.context
-  });
+console.log({
+  runtime: getRuntimeEnvironment(),
+  colors: supportsColor(),
+  development: isDevelopment()
 });
 ```
 
-This comprehensive error code reference helps you quickly identify, understand, and resolve issues with Plip Logger in any environment or integration scenario.
+### Inspect Attached Transports
+
+```javascript
+console.log(logger.getTransports().map(t => t.name));
+```
+
+This reference covers every diagnostic message Plip Logger can emit, plus the silent-misconfiguration cases that are easy to mistake for errors.

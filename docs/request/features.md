@@ -15,10 +15,10 @@ Before creating a new feature request:
 ### Consider the Scope
 
 Plip Logger aims to be:
-- 🎯 **Focused**: Excellent at logging, not everything
-- 🚀 **Lightweight**: Minimal dependencies and overhead
-- 🎨 **Beautiful**: Emphasis on visual appeal and developer experience
-- 🔧 **Flexible**: Configurable but with sensible defaults
+- **Focused**: Excellent at logging, not everything
+- **Lightweight**: No runtime dependencies
+- **Beautiful**: Emphasis on visual appeal and developer experience
+- **Flexible**: Configurable but with sensible defaults
 
 ## How to Submit a Feature Request
 
@@ -58,11 +58,11 @@ Other approaches or workarounds you've tried.
 
 ## Types of Feature Requests
 
-### 🎨 Visual & UX Improvements
+### Visual & UX Improvements
 
 Enhancements to the visual output and developer experience:
 
-- New emoji sets or themes
+- New color themes
 - Color scheme improvements
 - Output formatting options
 - Terminal compatibility improvements
@@ -74,7 +74,7 @@ Enhancements to the visual output and developer experience:
 **Solution**: Add a light/dark mode detection and adjust colors accordingly
 ```
 
-### ⚙️ Configuration & Customization
+### Configuration & Customization
 
 New configuration options or customization capabilities:
 
@@ -85,12 +85,12 @@ New configuration options or customization capabilities:
 
 **Example:**
 ```markdown
-**Feature**: Custom emoji configuration
-**Problem**: Some teams prefer different emojis for log levels
-**Solution**: Allow configuration of custom emoji mappings
+**Feature**: Custom color configuration
+**Problem**: Some teams prefer different colors for log levels
+**Solution**: Allow configuration of custom color mappings
 ```
 
-### 🔌 Integration & Compatibility
+### Integration & Compatibility
 
 Better integration with frameworks, tools, and platforms:
 
@@ -106,7 +106,7 @@ Better integration with frameworks, tools, and platforms:
 **Solution**: Create an adapter that allows Winston loggers to use Plip formatting
 ```
 
-### 📊 Performance & Features
+### Performance & Features
 
 Core functionality improvements and new features:
 
@@ -162,11 +162,12 @@ How should this feature work? Include code examples if applicable.
 
 ### Current Community Requests
 
-These are some popular feature ideas from the community:
+These are some popular feature ideas from the community. **None of the APIs below exist yet** — they are proposed designs, shown here to illustrate the requests.
 
 #### 1. Log Aggregation Integration
 ```typescript
-// Potential integration with popular log services
+// PROPOSED API — not implemented. Today, use addTransport() with the built-in
+// ConsoleTransport / FileTransport / RemoteTransport instead.
 plip.configure({
   outputs: [
     'console',
@@ -178,10 +179,10 @@ plip.configure({
 
 #### 2. Custom Log Levels
 ```typescript
-// Define custom log levels
+// PROPOSED API — not implemented. Plip's levels are a fixed set today:
+// info, warn, error, success, debug, trace, verbose.
 plip.addLevel('security', { 
   priority: 15, 
-  emoji: '🔒', 
   color: 'red' 
 });
 
@@ -190,7 +191,8 @@ plip.security("Suspicious activity detected", { userId, ip });
 
 #### 3. Log Filtering and Sampling
 ```typescript
-// Intelligent log filtering
+// PROPOSED API — not implemented. Today, level filtering is done with
+// `enabledLevels` / `.levels(...)`.
 plip.configure({
   filters: [
     { level: 'debug', sample: 0.1 }, // 10% of debug logs
@@ -202,7 +204,7 @@ plip.configure({
 
 #### 4. Structured Metadata
 ```typescript
-// Enhanced structured logging
+// This one already works today via withContext()
 plip.withContext({
   service: 'user-api',
   version: '1.2.0',
@@ -225,9 +227,9 @@ For broader ideas or concepts, consider starting a [GitHub Discussion](https://g
 
 Connect with other Plip users and contributors:
 
-- 💬 [GitHub Discussions](https://github.com/ru-dr/plip/discussions)
-- 🐛 [GitHub Issues](https://github.com/ru-dr/plip/issues)
-- 📝 [Contributing Guide](https://github.com/ru-dr/plip/blob/main/CONTRIBUTING.md)
+- [GitHub Discussions](https://github.com/ru-dr/plip/discussions)
+- [GitHub Issues](https://github.com/ru-dr/plip/issues)
+- [Contributing Guide](https://github.com/ru-dr/plip/blob/main/CONTRIBUTING.md)
 
 ## Implementation Process
 
@@ -261,20 +263,23 @@ We evaluate feature requests based on:
 
 ### Recently Implemented Features
 
-#### 1. Custom Prefix Support
+#### 1. Per-Module Context Support
 **Original Request**: "Allow custom prefixes for different modules"
 **Implementation**:
 ```typescript
-const dbLogger = plip.withPrefix('[DB]');
-const apiLogger = plip.withPrefix('[API]');
+const dbLogger = plip.withContext({ scope: 'DB' });
+const apiLogger = plip.withContext({ scope: 'API' });
 ```
 
 #### 2. Environment-Aware Configuration
 **Original Request**: "Automatically adjust settings based on NODE_ENV"
 **Implementation**:
 ```typescript
-plip.configure({
-  level: process.env.NODE_ENV === 'production' ? 'info' : 'debug'
+// configure() returns a new logger; it does not mutate the original
+const logger = plip.configure({
+  enabledLevels: process.env.NODE_ENV === 'production'
+    ? ['info', 'success', 'warn', 'error']
+    : ['debug', 'info', 'success', 'warn', 'error', 'trace', 'verbose']
 });
 ```
 
@@ -284,7 +289,7 @@ plip.configure({
 
 ## Tips for Great Feature Requests
 
-### ✅ Do This
+### Do This
 
 - **Be specific**: Clear, detailed descriptions
 - **Provide context**: Real-world use cases
@@ -292,7 +297,7 @@ plip.configure({
 - **Consider others**: How would this benefit the community?
 - **Stay focused**: One feature per request
 
-### ❌ Avoid This
+### Avoid This
 
 - **Vague requests**: "Make it better" isn't actionable
 - **Multiple features**: Keep requests focused
@@ -304,9 +309,9 @@ plip.configure({
 
 Ready to contribute? Here's how to get started:
 
-1. **💡 [Submit a Feature Request](https://github.com/ru-dr/plip/issues/new?template=feature_request.md)**
-2. **💬 [Join the Discussion](https://github.com/ru-dr/plip/discussions)**
-3. **🛠️ [Contributing Guide](/request/contributing)**
-4. **📞 [Get Support](/request/support)**
+1. **[Submit a Feature Request](https://github.com/ru-dr/plip/issues/new?template=feature_request.md)**
+2. **[Join the Discussion](https://github.com/ru-dr/plip/discussions)**
+3. **[Contributing Guide](/request/contributing)**
+4. **[Get Support](/request/support)**
 
-Your ideas help make Plip better for everyone! 🚀
+Your ideas help make Plip better for everyone!

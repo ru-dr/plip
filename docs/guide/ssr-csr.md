@@ -36,12 +36,11 @@ ssrLogger.info("This message is optimized for server environments");
 **Optimized for server environments, log files, and production monitoring.**
 
 ### Features:
-- 🚫 **No emojis** - Clean, professional server logs suitable for log files
-- � **Conditional colors** - Colors only in interactive terminals, plain text in log files
-- ⏰ **Timestamps** - Essential timing information for server operations
-- � **Request correlation** - Automatic request ID generation for distributed tracing
-- � **Context tracking** - Enhanced debugging information for server operations
-- 📋 **Structured output support** - Ready for JSON formatting and log aggregation
+- **Conditional colors** - Colors only in interactive terminals, plain text in log files
+- **Timestamps** - Essential timing information for server operations
+- **Request correlation** - Automatic request ID generation for distributed tracing
+- **Context tracking** - Enhanced debugging information for server operations
+- **Structured output support** - Ready for JSON formatting and log aggregation
 
 ### Usage:
 
@@ -50,7 +49,7 @@ import { createSSRLogger, ssrLogger } from '@ru-dr/plip';
 
 // Use pre-configured instance
 ssrLogger.info("Server started", { port: 3000, env: "production" });
-// Output: [2024-01-15T10:30:00.000Z] [INFO] Server started {"port":3000,"env":"production"}
+// Output: 2024-01-15T10:30:00.000Z [INFO] Server started {"port":3000,"env":"production"}
 ssrLogger.error("Database connection failed", { host: "localhost", error: "ECONNREFUSED" });
 
 // Create custom SSR logger with overrides
@@ -73,21 +72,26 @@ app.use((req, res, next) => {
 
 ### Example Output (Server):
 ```
-[2024-01-15T10:30:00.000Z] [INFO] Server started {"port":3000,"env":"production"}
-[2024-01-15T10:30:01.123Z] [ERROR] Database connection failed {"host":"localhost","error":"ECONNREFUSED"}
-[2024-01-15T10:30:02.456Z] [WARN] High memory usage {"usage":0.85,"threshold":0.8}
+2024-01-15T10:30:00.000Z [INFO] Server started {"port":3000,"env":"production"}
+2024-01-15T10:30:01.123Z [ERROR] Database connection failed {"host":"localhost","error":"ECONNREFUSED"}
+2024-01-15T10:30:02.456Z [WARN] High memory usage {"usage":0.85,"threshold":0.8}
+```
+
+With `enableStructuredOutput: true` (the SSR default in production) each line is instead a single JSON object:
+
+```
+{"timestamp":"2024-01-15T10:30:00.000Z","level":"info","message":"Server started {\n  \"port\": 3000\n}","requestId":"7c3f1b2e-9a41-4d0c-8b6e-2f5a9d18c704"}
 ```
 
 ### SSR Configuration Details:
 
 ```typescript
 const ssrDefaults = {
-  enableEmojis: false,      // Clean for server logs
-  enableColors: false,      // Conditional based on environment
-  enableTimestamp: true,    // Important for server logs
-  includeRequestId: true,   // For request correlation
-  includeContext: true,     // For debugging context
-  enableStructuredOutput: false
+  enableColors: !isProduction(),          // Colors only outside production
+  enableTimestamp: true,                  // Important for server logs
+  includeRequestId: true,                 // For request correlation
+  includeContext: true,                   // For debugging context
+  enableStructuredOutput: isProduction()  // JSON lines in production
 };
 ```
 
@@ -96,12 +100,11 @@ const ssrDefaults = {
 **Optimized for browser environments with visual appeal and interactive debugging.**
 
 ### Features:
-- ✅ **Rich emojis** - Visual appeal and quick recognition in browser console
-- 🌈 **Full colors** - Enhanced readability in browser dev tools
-- 🎨 **Syntax highlighting** - Beautiful object formatting for debugging
-- � **No timestamps** - Browser console already shows timing information
-- 🎯 **Reduced clutter** - No request IDs or excessive context for cleaner output
-- 🔍 **Interactive debugging** - Optimized for browser dev tools
+- **Full colors** - Enhanced readability in browser dev tools
+- **Syntax highlighting** - Beautiful object formatting for debugging
+- **No timestamps** - Browser console already shows timing information
+- **Reduced clutter** - No request IDs or excessive context for cleaner output
+- **Interactive debugging** - Optimized for browser dev tools
 
 ### Usage:
 
@@ -123,22 +126,21 @@ function UserProfile({ userId }) {
   }, [userId]);
 
   const handleLogin = async () => {
-    csrLogger.time('login-process');
+    const timer = csrLogger.startTimer('login-process');
     try {
       const result = await authService.login();
       csrLogger.success("Login successful", result);
     } catch (error) {
       csrLogger.error("Login failed", error);
     } finally {
-      csrLogger.timeEnd('login-process');
+      timer.end();
     }
   };
 }
 
 // Create custom CSR logger with overrides
 const customClientLogger = createCSRLogger({
-  enabledLevels: ["info", "warn", "error"], // Reduced verbosity
-  enableEmojis: false // Disable emojis if preferred
+  enabledLevels: ["info", "warn", "error"] // Reduced verbosity
 });
 
 // React component example
@@ -158,9 +160,9 @@ const LoginForm = () => {
 
 ### Example Output:
 ```
-🎉 [SUCCESS] User authenticated {"userId":123,"timestamp":"2025-06-01T10:30:00.000Z"}
-🔍 [DEBUG] Component state {"user":{"name":"John"},"isLoading":false}
-💥 [ERROR] Login failed {"error":"Invalid credentials"}
+[SUCCESS] User authenticated {"userId":123,"timestamp":"2025-06-01T10:30:00.000Z"}
+[DEBUG] Component state {"user":{"name":"John"},"isLoading":false}
+[ERROR] Login failed {"error":"Invalid credentials"}
 ```
 
 ## Environment-Based Log Levels
@@ -195,20 +197,19 @@ const debugLogger = createCSRLogger({
 
 ### Example Output (Browser):
 ```
-🎉 [SUCCESS] User authenticated {"userId":123,"role":"admin"}
-🔍 [DEBUG] Component state {"user":{"name":"John"},"isLoading":false}
-⏱️ [TIMER] login-process: 342ms
+[SUCCESS] User authenticated {"userId":123,"role":"admin"}
+[DEBUG] Component state {"user":{"name":"John"},"isLoading":false}
+[INFO] Timer "login-process" completed in 342.00ms
 ```
 
 ### CSR Configuration Details:
 
 ```typescript
 const csrDefaults = {
-  enableEmojis: true,       // Rich visual experience
   enableColors: true,       // Colorful browser console
   enableTimestamp: false,   // Browser already shows time
   includeRequestId: false,  // Not needed in client
-  includeContext: false,    // Less clutter
+  includeContext: true,     // Context is kept for debugging
   enableSyntaxHighlighting: true
 };
 ```
@@ -217,12 +218,11 @@ const csrDefaults = {
 
 | Feature | SSR (Server) | CSR (Client) | Purpose |
 |---------|--------------|--------------|---------|
-| **Emojis** | ❌ Disabled | ✅ Enabled | Server logs vs visual appeal |
-| **Colors** | 🔄 Conditional | ✅ Enabled | Terminal detection vs browser |
-| **Timestamps** | ✅ Enabled | ❌ Disabled | Chronological server logs vs browser timing |
-| **Request IDs** | ✅ Enabled | ❌ Disabled | Distributed tracing vs simplicity |
-| **Context** | ✅ Enabled | ❌ Disabled | Server debugging vs clean output |
-| **Syntax Highlighting** | ✅ Enabled | ✅ Enabled | Object formatting for both |
+| **Colors** | Conditional | Enabled | Terminal detection vs browser |
+| **Timestamps** | Enabled | Disabled | Chronological server logs vs browser timing |
+| **Request IDs** | Enabled | Disabled | Distributed tracing vs simplicity |
+| **Context** | Enabled | Enabled | Context is included in both |
+| **Syntax Highlighting** | Enabled | Enabled | Object formatting for both |
 
 ## Auto-Detection
 
@@ -286,6 +286,9 @@ export function UserList() {
 
   return <div>{/* component JSX */}</div>;
 }
+```
+
+```typescript
 // lib/logger.ts
 import { createSSRLogger, createCSRLogger } from '@ru-dr/plip';
 
@@ -369,14 +372,14 @@ csrLogger.info("Client message");
 
 ## Best Practices
 
-### ✅ Do:
+### Do:
 - Use SSR loggers for server-side code (APIs, middleware, background jobs)
 - Use CSR loggers for client-side code (React components, browser interactions)
 - Override configurations to match your specific needs
 - Use structured logging with meaningful data objects
 - Respect different log levels for different environments
 
-### ❌ Don't:
+### Don't:
 - Mix SSR and CSR loggers in the same context without purpose
 - Log sensitive information (passwords, tokens) in any configuration
 - Use verbose logging levels in production environments

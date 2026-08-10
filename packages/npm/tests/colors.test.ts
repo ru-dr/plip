@@ -1,28 +1,28 @@
 // tests/colors.test.ts
 import { test, expect, describe } from "bun:test";
-import { colors, colorize, stripColors, red, green, yellow, blue, magenta, cyan, gray, brightBlue, hasColors, formatObject, highlightCode } from "../src/utils/colors.js";
-import clc from 'cli-color';
+import { colors, colorize, stripColors, red, green, yellow, hasColors, formatObject, highlightCode } from "../src/utils/colors.js";
 
 describe("Color Utilities", () => {
-  test("colors object should contain cli-color functions", () => {
+  test("colors object exposes color functions", () => {
     expect(typeof colors.red).toBe("function");
     expect(typeof colors.green).toBe("function");
-    expect(typeof colors.reset).toBe("string");
+    expect(typeof colors.info).toBe("function");
+    expect(typeof colors.infoDim).toBe("function");
   });
 
   test("colorize should apply color when enabled", () => {
-    const result = colorize("test", clc.red, true);
+    const result = colorize("test", colors.red, true);
     expect(result).toContain("test");
     expect(hasColors(result)).toBe(true);
   });
 
   test("colorize should not apply color when disabled", () => {
-    const result = colorize("test", clc.red, false);
+    const result = colorize("test", colors.red, false);
     expect(result).toBe("test");
   });
 
   test("stripColors should remove ANSI codes", () => {
-    const coloredText = clc.red("red text");
+    const coloredText = colors.red("red text");
     const stripped = stripColors(coloredText);
     expect(stripped).toBe("red text");
   });
@@ -37,7 +37,7 @@ describe("Color Utilities", () => {
     expect(yellowDisabled).toBe("test");
   });
   test("hasColors should detect ANSI codes", () => {
-    expect(hasColors(clc.red("red"))).toBe(true);
+    expect(hasColors(colors.red("red"))).toBe(true);
     expect(hasColors("plain text")).toBe(false);
   });
 
