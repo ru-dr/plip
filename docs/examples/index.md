@@ -20,10 +20,10 @@ plip.error("Database connection failed");
 
 **Output:**
 ```
-🫧 [INFO] Application started
-🎉 [SUCCESS] User registration completed  
-⚠️ [WARN] API rate limit approaching
-💥 [ERROR] Database connection failed
+[INFO] Application started
+[SUCCESS] User registration completed
+[WARN] API rate limit approaching
+[ERROR] Database connection failed
 ```
 
 ### Logging with Data
@@ -99,7 +99,7 @@ app.get('/users/:id', async (req, res) => {
 });
 
 app.listen(3000, () => {
-  plip.success("🚀 Server started on port 3000");
+  plip.success("Server started on port 3000");
 });
 ```
 
@@ -286,7 +286,7 @@ import { plip } from '@ru-dr/plip';
 
 class EmailJobProcessor {
   async processEmailQueue() {
-    plip.info("🔄 Starting email queue processing");
+    plip.info("Starting email queue processing");
     
     while (true) {
       try {
@@ -398,7 +398,7 @@ class APIClient {
       const requestId = generateRequestId();
       config.metadata = { requestId, startTime: Date.now() };
       
-      plip.debug("🌐 API request started", {
+      plip.debug("API request started", {
         requestId,
         method: config.method?.toUpperCase(),
         url: config.url,
@@ -414,7 +414,7 @@ class APIClient {
         const { requestId, startTime } = response.config.metadata;
         const duration = Date.now() - startTime;
         
-        plip.success("✅ API request completed", {
+        plip.success("API request completed", {
           requestId,
           status: response.status,
           duration: `${duration}ms`,
@@ -427,7 +427,7 @@ class APIClient {
         const { requestId, startTime } = error.config?.metadata || {};
         const duration = startTime ? Date.now() - startTime : 0;
         
-        plip.error("❌ API request failed", {
+        plip.error("API request failed", {
           requestId,
           status: error.response?.status,
           duration: `${duration}ms`,
@@ -519,7 +519,7 @@ async function processUserData(userData: any) {
         error: error.message
       });
     } else {
-      plip.fatal("Unexpected error in user data processing", {
+      plip.error("Unexpected error in user data processing", {
         userId: userData.id,
         error: error.message,
         stack: error.stack

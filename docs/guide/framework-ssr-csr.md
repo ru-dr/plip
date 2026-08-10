@@ -265,40 +265,40 @@ export const createUniversalLogger = () => {
 ## Best Practices by Framework Type
 
 ### Server-Side Frameworks
-✅ **Do:**
+**Do:**
 - Use `createSSRLogger()` for all logging
 - Log request/response cycles with correlation IDs
 - Include performance metrics (response time, memory usage)
 - Use structured logging with consistent field names
 - Implement proper error handling and stack traces
 
-❌ **Don't:**
+**Don't:**
 - Use client-side logger configurations
 - Log sensitive information (passwords, tokens)
 - Create excessive log entries in high-traffic endpoints
 
 ### Client-Side Frameworks  
-✅ **Do:**
+**Do:**
 - Use `createCSRLogger()` for all browser logging
 - Log user interactions and component lifecycle events
 - Include user context (user ID, session ID) when available
 - Log client-side errors with component stack traces
 - Use appropriate log levels for debugging vs production
 
-❌ **Don't:**
+**Don't:**
 - Use server-side logger configurations
 - Log personal user data without proper consent
 - Create excessive logs that impact browser performance
 
 ### Full-Stack Frameworks
-✅ **Do:**
+**Do:**
 - Use separate loggers for server and client contexts
 - Maintain consistent log formatting across both sides
 - Use correlation IDs to track requests across server/client
 - Implement proper environment detection
 - Document which logger to use in different parts of your app
 
-❌ **Don't:**
+**Don't:**
 - Mix SSR and CSR loggers in the same context
 - Assume the environment without proper detection
 - Ignore the performance implications of excessive logging

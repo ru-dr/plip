@@ -25,13 +25,12 @@ Custom loggers help you organize logs by service, add automatic context, and mai
 import { createPlip } from '@ru-dr/plip';
 
 const customLogger = createPlip({
-  enableEmojis: true,
   enableColors: true,
   enabledLevels: ['info', 'warn', 'error']
 });
 
-customLogger.info("Hello from my custom logger! 🎉");
-// Output: 🫧 [INFO] Hello from my custom logger! 🎉
+customLogger.info("Hello from my custom logger!");
+// Output: [INFO] Hello from my custom logger!
 ```
 
 ::: code-group
@@ -39,7 +38,6 @@ customLogger.info("Hello from my custom logger! 🎉");
 ```typescript [Basic Usage]
 // Simple custom logger
 const apiLogger = createPlip({
-  enableEmojis: true,
   enableColors: true,
   enabledLevels: ['info', 'warn', 'error']
 });
@@ -50,21 +48,19 @@ apiLogger.info("API server started", { port: 3000 });
 ```typescript [With Context]
 // Logger with automatic context
 const dbLogger = createPlip({
-  enableEmojis: true,
   enableColors: true,
   enabledLevels: ['debug', 'info', 'warn', 'error']
 }).withContext({ service: 'database', version: '1.0' });
 
 dbLogger.info("Connection established");
-// Output: 🫧 [INFO] Connection established {"service":"database","version":"1.0"}
+// Output: [INFO] Connection established {"service":"database","version":"1.0"}
 ```
 
 ```typescript [Production Ready]
 // Environment-aware logger
 const prodLogger = createPlip({
-  enableEmojis: false,     // Cleaner logs in production
   enableColors: true,
-  enabledLevels: ['info', 'warn', 'error', 'fatal']
+  enabledLevels: ['info', 'warn', 'error']
 }).withContext({ 
   service: 'user-api',
   environment: 'production',
@@ -77,12 +73,12 @@ const prodLogger = createPlip({
 ### Why Custom Loggers?
 
 Custom loggers provide:
-- **🎯 Focused logging** - Different log levels for different services
-- **🏷️ Automatic context** - Service names, request IDs, user info
-- **⚙️ Tailored configuration** - Production vs development settings
-- **📊 Better debugging** - Trace issues by service or feature
-- **🔧 Maintainability** - Centralized logging configuration
-- **🚀 Performance** - Only log what you need, when you need it
+- **Focused logging** - Different log levels for different services
+- **Automatic context** - Service names, request IDs, user info
+- **Tailored configuration** - Production vs development settings
+- **Better debugging** - Trace issues by service or feature
+- **Maintainability** - Centralized logging configuration
+- **Performance** - Only log what you need, when you need it
 
 ## Service-Specific Loggers
 
@@ -92,7 +88,6 @@ Create specialized loggers for different parts of your application:
 
 ```typescript
 const dbLogger = createPlip({
-  enableEmojis: true,
   enableColors: true,
   enabledLevels: ['debug', 'info', 'warn', 'error']
 }).withContext({ service: 'database' });
@@ -120,7 +115,6 @@ dbLogger.error("Query failed", {
 
 ```typescript
 const apiLogger = createPlip({
-  enableEmojis: true,
   enableColors: true,
   enabledLevels: ['info', 'warn', 'error']
 }).withContext({ service: 'api', version: 'v1' });
@@ -153,9 +147,8 @@ apiLogger.warn("Rate limit triggered", {
 
 ```typescript
 const authLogger = createPlip({
-  enableEmojis: false, // More formal for security logs
   enableColors: true,
-  enabledLevels: ['info', 'warn', 'error', 'fatal']
+  enabledLevels: ['info', 'warn', 'error']
 }).withContext({ service: 'auth', component: 'security' });
 
 // Successful authentication
@@ -182,7 +175,7 @@ authLogger.error("Suspicious activity detected", {
 });
 
 // Critical security
-authLogger.fatal("Potential security breach", {
+authLogger.error("Potential security breach", {
   type: 'unauthorized_admin_access',
   sourceIp: '10.0.0.1',
   targetResource: '/admin/users',
@@ -222,15 +215,13 @@ class LoggerFactory {
     
     // Base configuration
     const baseConfig = {
-      enableEmojis: !isProd && !isTest,
       enableColors: !isTest,
       enabledLevels: [
         ...(enableDebug || environment === 'development' ? ['verbose', 'debug'] : []),
         'info',
         'success',
         'warn',
-        'error',
-        'fatal'
+        'error'
       ] as LogLevel[]
     };
     
@@ -653,7 +644,7 @@ class JobProcessor {
       });
       
       if (job.attempts >= job.maxAttempts) {
-        jobLogger.fatal("Job exceeded max attempts, moving to dead letter queue", {
+        jobLogger.error("Job exceeded max attempts, moving to dead letter queue", {
           finalAttempt: job.attempts,
           maxAttempts: job.maxAttempts
         });
@@ -718,10 +709,10 @@ const emailLogger = plip.withContext({ scope: "email", provider: "sendgrid" });
 
 // All logs from authLogger will include { scope: "auth" }
 authLogger.info("User login attempt", { userId: 123 });
-// Output: 🫧 [INFO] User login attempt {"scope":"auth","userId":123}
+// Output: [INFO] User login attempt {"scope":"auth","userId":123}
 
 authLogger.success("Login successful", { userId: 123, method: "oauth" });
-// Output: ✅ [SUCCESS] Login successful {"scope":"auth","userId":123,"method":"oauth"}
+// Output: [SUCCESS] Login successful {"scope":"auth","userId":123,"method":"oauth"}
 ```
 
 ### Context Chaining & Extension
@@ -942,7 +933,7 @@ For more complex scenarios, you can still create custom wrapper classes:
 
 ```typescript
 class ContextLogger {
-  private logger: PlipLogger;
+  private logger: Logger;
   private context: Record<string, any>;
   
   constructor(context: Record<string, any>, config?: PlipConfig) {
@@ -992,9 +983,8 @@ Create a centralized registry for managing loggers across large applications:
 class LoggerRegistry {
   private static loggers = new Map<string, any>();
   private static defaultConfig: PlipConfig = {
-    enableEmojis: process.env.NODE_ENV === 'development',
     enableColors: true,
-    enabledLevels: ['info', 'success', 'warn', 'error', 'fatal']
+    enabledLevels: ['info', 'success', 'warn', 'error']
   };
 
   static getLogger(name: string, config?: Partial<PlipConfig>): any {
@@ -1035,7 +1025,7 @@ class LoggerRegistry {
 // Usage across your enterprise application
 const userServiceLogger = LoggerRegistry.getLogger('user-service');
 const paymentServiceLogger = LoggerRegistry.getLogger('payment-service', {
-  enableEmojis: false
+  enableColors: false
 });
 const authLogger = LoggerRegistry.getLogger('auth-service');
 ```
@@ -1162,7 +1152,6 @@ class MultiTenantLogger {
       }
 
       const logger = createPlip({
-        enableEmojis: false,
         enableColors: false,
         enabledLevels: this.getLevelsForTenant(tenantConfig)
       }).withContext({
@@ -1179,7 +1168,7 @@ class MultiTenantLogger {
   }
 
   private static getLevelsForTenant(config: TenantConfig): string[] {
-    const baseLevels = ['info', 'warn', 'error', 'fatal'];
+    const baseLevels = ['info', 'warn', 'error'];
     
     if (config.allowDebug) {
       baseLevels.unshift('debug', 'verbose');
@@ -1442,33 +1431,29 @@ class ResourceLogger {
 export const LOGGER_STANDARDS = {
   // Development environment
   development: {
-    enableEmojis: true,
     enableColors: true,
-    enabledLevels: ['verbose', 'debug', 'info', 'success', 'warn', 'error', 'fatal'],
+    enabledLevels: ['verbose', 'debug', 'info', 'success', 'warn', 'error', 'trace'],
     performance: false
   },
   
   // Staging environment  
   staging: {
-    enableEmojis: false,
     enableColors: true,
-    enabledLevels: ['info', 'success', 'warn', 'error', 'fatal'],
+    enabledLevels: ['info', 'success', 'warn', 'error'],
     performance: true
   },
   
   // Production environment
   production: {
-    enableEmojis: false,
     enableColors: false,
-    enabledLevels: ['warn', 'error', 'fatal'],
+    enabledLevels: ['warn', 'error'],
     performance: true
   },
   
   // Testing environment
   testing: {
-    enableEmojis: false,
     enableColors: false,
-    enabledLevels: ['error', 'fatal'],
+    enabledLevels: ['error'],
     performance: false
   }
 } as const;
@@ -1495,7 +1480,7 @@ export const createStandardLogger = (
 ### Message Formatting Guidelines
 
 ```typescript
-// ✅ Good: Clear, descriptive messages with context
+// Good: Clear, descriptive messages with context
 const userLogger = createStandardLogger('user-service', '1.0.0');
 
 userLogger.info("User registration completed", {
@@ -1522,7 +1507,7 @@ userLogger.error("Email delivery failed", {
   nextRetry: '2024-01-15T10:30:00Z'
 });
 
-// ❌ Avoid: Vague messages without context
+// Avoid: Vague messages without context
 userLogger.info("User created");
 userLogger.warn("Password weak");
 userLogger.error("Email failed");
@@ -1531,7 +1516,7 @@ userLogger.error("Email failed");
 ### Error Handling Patterns
 
 ```typescript
-// ✅ Recommended: Structured error logging
+// Recommended: Structured error logging
 async function processPayment(paymentData: PaymentData) {
   const operationLogger = paymentLogger.withContext({
     operation: 'process_payment',
@@ -1586,9 +1571,15 @@ describe('Logger Configuration', () => {
     const logger = createStandardLogger('test-service', '1.0.0');
     
     // Test that production config is applied
-    expect(logger.config.enableEmojis).toBe(false);
-    expect(logger.config.enableColors).toBe(false);
-    expect(logger.config.enabledLevels).toEqual(['warn', 'error', 'fatal']);
+    // The resolved config is private, so assert on behaviour instead
+    const spy = jest.spyOn(console, 'log').mockImplementation(() => {});
+
+    logger.info("suppressed in production");
+    logger.error("visible in production");
+
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(spy.mock.calls[0][0]).not.toMatch(/\u001b\[/); // colors disabled
+    spy.mockRestore();
   });
 
   it('should include proper context', () => {
@@ -1597,13 +1588,9 @@ describe('Logger Configuration', () => {
     
     logger.info("Test message", { testData: 'value' });
     
+    // Transports receive a single pre-formatted string
     expect(spy).toHaveBeenCalledWith(
-      expect.stringContaining('user-service'),
-      expect.objectContaining({
-        service: 'user-service',
-        version: '2.1.0',
-        testData: 'value'
-      })
+      expect.stringContaining('user-service')
     );
   });
 });

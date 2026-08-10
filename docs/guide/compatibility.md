@@ -6,24 +6,20 @@ Learn about Plip's compatibility with different environments, terminals, and pla
 
 ### Supported Versions
 
-| Node.js Version | Status | Notes |
-|----------------|--------|-------|
-| 21.x | ✅ Fully Supported | Latest features available |
-| 20.x | ✅ Fully Supported | LTS - Recommended |
-| 18.x | ✅ Fully Supported | LTS - Recommended |
-| 16.x | ✅ Supported | Minimum required version |
-| 14.x | ❌ Not Supported | EOL - Please upgrade |
-| 12.x | ❌ Not Supported | EOL - Please upgrade |
+The package declares `"engines": { "node": ">=16" }`. An active LTS release is
+recommended.
 
 ### ES Module Support
 
-Plip fully supports both ES modules and CommonJS:
+Plip ships a dual build and fully supports both ES modules and CommonJS - ESM at
+`dist/esm/index.js`, CommonJS at `dist/cjs/index.js`, types at
+`dist/esm/index.d.ts`:
 
 ```typescript
-// ✅ ES Modules (Recommended)
+// ES Modules (Recommended)
 import { plip } from '@ru-dr/plip';
 
-// ✅ CommonJS
+// CommonJS
 const { plip } = require('@ru-dr/plip');
 ```
 
@@ -31,78 +27,70 @@ const { plip } = require('@ru-dr/plip');
 
 ### Color Support Detection
 
-Plip automatically detects terminal color capabilities:
+Plip emits basic 16-color ANSI codes, which every modern terminal understands.
+`supportsColor()` decides whether to emit them at all, in this order:
 
-| Terminal | 256 Colors | True Color | Auto-Detection |
-|----------|------------|------------|----------------|
-| VS Code Terminal | ✅ | ✅ | ✅ |
-| Windows Terminal | ✅ | ✅ | ✅ |
-| iTerm2 | ✅ | ✅ | ✅ |
-| Hyper | ✅ | ✅ | ✅ |
-| GNOME Terminal | ✅ | ✅ | ✅ |
-| Terminal.app | ✅ | ✅ | ✅ |
-| Alacritty | ✅ | ✅ | ✅ |
-| Windows CMD | ⚠️ Limited | ❌ | ✅ |
-| Git Bash | ✅ | ⚠️ Limited | ✅ |
+1. `NO_COLOR` set - colors off.
+2. `FORCE_COLOR` set - colors on.
+3. `process.stdout.isTTY` - follows the stream.
+4. `TERM` - `dumb` is off; values containing `color` or `256` are on.
+5. `CI` together with `GITHUB_ACTIONS`, `GITLAB_CI`, `CIRCLECI` or `TRAVIS` - on.
+
+In a browser, `supportsColor()` returns false.
 
 ### Manual Color Control
 
 Override automatic detection when needed:
 
 ```typescript
-// Force colors on
-plip.configure({ colors: true });
+import { createPlip } from '@ru-dr/plip';
+
+// Force colors on (configure/withColors return a new logger)
+const colorful = plip.withColors(true);
 
 // Force colors off
-plip.configure({ colors: false });
+const plain = plip.withColors(false);
 
-// Auto-detect (default)
-plip.configure({ colors: 'auto' });
+// Auto-detect (default): omit enableColors when creating a logger
+const auto = createPlip({});
 ```
 
 ## Platform Support
 
 ### Operating Systems
 
-| Platform | Status | Notes |
-|----------|--------|-------|
-| Linux | ✅ Fully Supported | All distributions |
-| macOS | ✅ Fully Supported | All versions |
-| Windows 10+ | ✅ Fully Supported | With Windows Terminal |
-| Windows 8.1 | ⚠️ Limited Colors | Basic color support |
-| Docker | ✅ Fully Supported | Alpine, Ubuntu, etc. |
+Plip contains no platform-specific code: it writes strings to `console` and,
+for the file transport, uses `node:fs`. Anywhere your JavaScript runtime runs,
+Plip runs. Colors depend on the terminal rather than the OS - see
+[Color Support Detection](#color-support-detection).
 
 ### Environment Variables
 
-Plip respects standard environment variables:
+Plip respects standard environment variables during color detection:
 
 ```bash
-# Force color output
+# Force color output (any non-empty value enables colors)
 FORCE_COLOR=1 node app.js
 
-# Disable color output
+# Disable color output (any non-empty value wins over FORCE_COLOR)
 NO_COLOR=1 node app.js
 
-# Set color level (0-3)
-FORCE_COLOR=3 node app.js
-
-# Control TTY detection
-CI=true node app.js
+# TERM is consulted when stdout is not a TTY
+TERM=xterm-256color node app.js
 ```
+
+`NODE_ENV` is also read to decide development vs production behavior. Plip does
+not read any `PLIP_*` environment variables of its own - pass configuration to
+`createPlip()` instead.
 
 ## Runtime Environments
 
 ### Cloud Platforms
 
-| Platform | Colors | Emojis | Notes |
-|----------|--------|--------|-------|
-| AWS Lambda | ⚠️ Limited | ✅ | CloudWatch logs |
-| Google Cloud Functions | ⚠️ Limited | ✅ | Stackdriver logs |
-| Azure Functions | ⚠️ Limited | ✅ | Application Insights |
-| Vercel | ❌ | ✅ | Text logs only |
-| Netlify | ❌ | ✅ | Text logs only |
-| Railway | ✅ | ✅ | Full support |
-| Render | ✅ | ✅ | Full support |
+Serverless and PaaS log collectors usually capture stdout without a TTY, so
+`supportsColor()` returns false and output is plain text. That is normally what
+you want; pair it with `enableStructuredOutput: true` so the collector receives
+one JSON object per line. Set `FORCE_COLOR=1` if a platform does render ANSI.
 
 ### Container Environments
 
@@ -121,14 +109,9 @@ CMD ["node", "app.js"]
 
 ### CI/CD Environments
 
-| CI/CD Platform | Colors | Detection | Configuration |
-|----------------|--------|-----------|---------------|
-| GitHub Actions | ✅ | ✅ | Automatic |
-| GitLab CI | ✅ | ✅ | Automatic |
-| CircleCI | ✅ | ✅ | Automatic |
-| Travis CI | ✅ | ✅ | Automatic |
-| Jenkins | ⚠️ Varies | ⚠️ Manual | Set FORCE_COLOR=1 |
-| Azure DevOps | ✅ | ✅ | Automatic |
+`supportsColor()` recognises GitHub Actions, GitLab CI, CircleCI and Travis by
+their environment variables when `CI` is also set. Anywhere else, set
+`FORCE_COLOR=1` to opt in.
 
 ```yaml
 # GitHub Actions example
@@ -142,13 +125,7 @@ CMD ["node", "app.js"]
 
 ### Supported Versions
 
-| TypeScript Version | Status | Notes |
-|-------------------|--------|-------|
-| 5.3+ | ✅ Fully Supported | Latest features |
-| 5.0-5.2 | ✅ Fully Supported | Recommended |
-| 4.5-4.9 | ✅ Supported | Minimum required |
-| 4.0-4.4 | ⚠️ Limited | Missing some types |
-| < 4.0 | ❌ Not Supported | Please upgrade |
+TypeScript 5.x. The package declares `typescript: ^5` as a peer dependency.
 
 ### Configuration Requirements
 
@@ -170,40 +147,16 @@ CMD ["node", "app.js"]
 
 ### Popular Frameworks
 
-| Framework | Support Level | Integration Guide |
-|-----------|---------------|------------------|
-| Express.js | ✅ Excellent | [Express Guide](/integration/express) |
-| Fastify | ✅ Excellent | [Fastify Guide](/integration/fastify) |
-| NestJS | ✅ Excellent | [NestJS Guide](/integration/nestjs) |
-| Next.js | ✅ Good | [Next.js Guide](/integration/nextjs) |
-| Koa.js | ✅ Good | Manual integration |
-| Hapi.js | ✅ Good | Manual integration |
+Plip is framework-agnostic: it writes to transports, so any framework can use it.
+These guides cover the common wiring:
 
-## Unicode and Emoji Support
+- [Express](/integration/express)
+- [Fastify](/integration/fastify)
+- [NestJS](/integration/nestjs)
+- [Next.js](/integration/nextjs)
 
-### Terminal Requirements
-
-Most modern terminals support Unicode and emojis:
-
-```typescript
-// ✅ Works in most terminals
-plip.success("✅ Task completed");
-plip.error("💥 Something broke");
-plip.info("🚀 Deployment started");
-
-// ⚠️ Fallback for older terminals
-plip.configure({
-  emojis: process.env.TERM_EMOJIS !== 'false'
-});
-```
-
-### Font Requirements
-
-For best emoji display, use fonts that support Unicode:
-
-- **Recommended**: Noto Color Emoji, Apple Color Emoji
-- **Monospace**: Fira Code, JetBrains Mono, Cascadia Code
-- **Fallback**: Most system default fonts
+There are also dedicated adapters for React and Next.js (`ReactAdapter`,
+`NextJSAdapter`).
 
 ## Performance Considerations
 
@@ -211,23 +164,21 @@ For best emoji display, use fonts that support Unicode:
 
 ```typescript
 // Optimize for production
-if (process.env.NODE_ENV === 'production') {
-  plip.configure({
-    level: 'info',        // Reduce log verbosity
-    colors: false,        // Disable colors for log aggregation
-    emojis: false,        // Disable emojis for parsing
-    timestamps: true      // Enable for production tracking
-  });
-}
+const logger = process.env.NODE_ENV === 'production'
+  ? plip.configure({
+      enabledLevels: ['info', 'warn', 'error'], // Reduce log verbosity
+      enableColors: false,                      // Better for log aggregation
+      enableTimestamp: true                     // Enable for production tracking
+    })
+  : plip;
 ```
 
 ### Memory Usage
 
 Plip has minimal memory overhead:
 
-- **Bundle size**: ~15KB minified
-- **Runtime overhead**: <1MB typical usage
-- **Zero dependencies**: No external dependencies
+- **Zero dependencies**: no runtime dependencies at all - ANSI codes are inlined
+- **Tree-shakeable**: the package declares `"sideEffects": false`
 
 ## Troubleshooting
 
@@ -244,33 +195,27 @@ Plip has minimal memory overhead:
    FORCE_COLOR=1 node app.js
    ```
 
-3. **Verify Plip configuration**:
+3. **Verify color detection** (the logger's config is private, but the same
+   helper Plip uses is exported):
    ```typescript
-   plip.info("Colors enabled:", plip.config.colors);
-   ```
+   import { supportsColor } from '@ru-dr/plip';
 
-### Emojis Not Displaying
-
-1. **Check font support**: Ensure your terminal font supports Unicode
-2. **Terminal encoding**: Verify UTF-8 encoding is enabled
-3. **Manual override**:
-   ```typescript
-   plip.configure({ emojis: false });
+   plip.info("Colors supported:", supportsColor());
    ```
 
 ### Performance Issues
 
-1. **Reduce log level in production**:
+1. **Reduce enabled levels in production**:
    ```typescript
-   plip.configure({ level: 'warn' });
+   const quiet = plip.levels('warn', 'error');
    ```
 
 2. **Disable expensive features**:
    ```typescript
-   plip.configure({
-     colors: false,
-     timestamps: false,
-     stackTrace: false
+   const lean = plip.configure({
+     enableColors: false,
+     enableSyntaxHighlighting: false,
+     enableTimestamp: false
    });
    ```
 

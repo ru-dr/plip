@@ -9,12 +9,12 @@ This guide covers integrating Plip Logger with various databases and ORMs to pro
 ```typescript
 // lib/prisma.ts
 import { PrismaClient } from '@prisma/client'
-import { Logger } from '@ru-dr/plip'
+import { createPlip } from '@ru-dr/plip'
 
-const logger = new Logger({
-  level: 'debug',
-  timestamp: true,
-  colorize: process.env.NODE_ENV === 'development'
+const logger = createPlip({
+  enabledLevels: ['debug', 'info', 'warn', 'error', 'success'],
+  enableTimestamp: true,
+  enableColors: process.env.NODE_ENV === 'development'
 })
 
 export const prisma = new PrismaClient({
@@ -62,11 +62,11 @@ prisma.$on('warn', (e) => {
 
 ```typescript
 // lib/database-logger.ts
-import { Logger } from '@ru-dr/plip'
+import { createPlip } from '@ru-dr/plip'
 
-const logger = new Logger({
-  level: 'debug',
-  timestamp: true
+const logger = createPlip({
+  enabledLevels: ['debug', 'info', 'warn', 'error', 'success'],
+  enableTimestamp: true
 })
 
 export async function loggedQuery<T>(
@@ -128,11 +128,11 @@ export async function createUser(data: CreateUserData) {
 ```typescript
 // config/database.config.ts
 import { TypeOrmModuleOptions } from '@nestjs/typeorm'
-import { Logger } from '@ru-dr/plip'
+import { createPlip } from '@ru-dr/plip'
 
-const logger = new Logger({
-  level: 'debug',
-  timestamp: true
+const logger = createPlip({
+  enabledLevels: ['debug', 'info', 'warn', 'error', 'success'],
+  enableTimestamp: true
 })
 
 export const databaseConfig: TypeOrmModuleOptions = {
@@ -188,13 +188,13 @@ import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import { User } from '../entities/user.entity'
-import { Logger } from '@ru-dr/plip'
+import { createPlip } from '@ru-dr/plip'
 
 @Injectable()
 export class UserRepository {
-  private logger = new Logger({
-    level: 'debug',
-    timestamp: true
+  private logger = createPlip({
+    enabledLevels: ['debug', 'info', 'warn', 'error', 'success'],
+    enableTimestamp: true
   })
 
   constructor(
@@ -293,11 +293,11 @@ export class UserRepository {
 ```typescript
 // config/mongoose.config.ts
 import mongoose from 'mongoose'
-import { Logger } from '@ru-dr/plip'
+import { createPlip } from '@ru-dr/plip'
 
-const logger = new Logger({
-  level: 'debug',
-  timestamp: true
+const logger = createPlip({
+  enabledLevels: ['debug', 'info', 'warn', 'error', 'success'],
+  enableTimestamp: true
 })
 
 // Enable mongoose debugging
@@ -345,11 +345,11 @@ export async function connectToMongoDB() {
 ```typescript
 // models/user.model.ts
 import mongoose, { Schema, Document } from 'mongoose'
-import { Logger } from '@ru-dr/plip'
+import { createPlip } from '@ru-dr/plip'
 
-const logger = new Logger({
-  level: 'debug',
-  timestamp: true
+const logger = createPlip({
+  enabledLevels: ['debug', 'info', 'warn', 'error', 'success'],
+  enableTimestamp: true
 })
 
 export interface IUser extends Document {
@@ -426,12 +426,12 @@ export const User = mongoose.model<IUser>('User', UserSchema)
 ```typescript
 // services/user.service.ts
 import { User, IUser } from '../models/user.model'
-import { Logger } from '@ru-dr/plip'
+import { createPlip } from '@ru-dr/plip'
 
 export class UserService {
-  private logger = new Logger({
-    level: 'debug',
-    timestamp: true
+  private logger = createPlip({
+    enabledLevels: ['debug', 'info', 'warn', 'error', 'success'],
+    enableTimestamp: true
   })
 
   async findAll(): Promise<IUser[]> {
@@ -525,11 +525,11 @@ export class UserService {
 ```typescript
 // config/sequelize.config.ts
 import { Sequelize } from 'sequelize'
-import { Logger } from '@ru-dr/plip'
+import { createPlip } from '@ru-dr/plip'
 
-const logger = new Logger({
-  level: 'debug',
-  timestamp: true
+const logger = createPlip({
+  enabledLevels: ['debug', 'info', 'warn', 'error', 'success'],
+  enableTimestamp: true
 })
 
 export const sequelize = new Sequelize(
@@ -572,11 +572,11 @@ sequelize.authenticate()
 ```typescript
 // models/user.model.ts
 import { DataTypes, Model, Sequelize } from 'sequelize'
-import { Logger } from '@ru-dr/plip'
+import { createPlip } from '@ru-dr/plip'
 
-const logger = new Logger({
-  level: 'debug',
-  timestamp: true
+const logger = createPlip({
+  enabledLevels: ['debug', 'info', 'warn', 'error', 'success'],
+  enableTimestamp: true
 })
 
 export class User extends Model {
@@ -666,12 +666,12 @@ export function initUserModel(sequelize: Sequelize) {
 
 ```typescript
 // utils/connection-monitor.ts
-import { Logger } from '@ru-dr/plip'
+import { createPlip } from '@ru-dr/plip'
 
 export class ConnectionMonitor {
-  private logger = new Logger({
-    level: 'info',
-    timestamp: true
+  private logger = createPlip({
+    enabledLevels: ['info', 'warn', 'error', 'success'],
+    enableTimestamp: true
   })
 
   private activeConnections = 0
@@ -728,11 +728,11 @@ export const connectionMonitor = new ConnectionMonitor()
 ```typescript
 // utils/transaction-logger.ts
 import { PrismaClient } from '@prisma/client'
-import { Logger } from '@ru-dr/plip'
+import { createPlip } from '@ru-dr/plip'
 
-const logger = new Logger({
-  level: 'debug',
-  timestamp: true
+const logger = createPlip({
+  enabledLevels: ['debug', 'info', 'warn', 'error', 'success'],
+  enableTimestamp: true
 })
 
 export async function loggedTransaction<T>(

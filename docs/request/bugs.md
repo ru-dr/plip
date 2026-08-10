@@ -6,7 +6,7 @@ Found a bug in Plip Logger? Help us improve by submitting detailed bug reports. 
 
 ### 1. Check Existing Issues
 
-Search our [GitHub Issues](https://github.com/username/plip-logger/issues) to see if the bug has already been reported:
+Search our [GitHub Issues](https://github.com/ru-dr/plip/issues) to see if the bug has already been reported:
 
 - Use relevant keywords from your error message
 - Check both open and closed issues
@@ -75,7 +75,9 @@ Use this template when creating bug reports:
 
 ```javascript
 // Your logger configuration
-const logger = new Logger({
+import { createPlip } from '@ru-dr/plip';
+
+const logger = createPlip({
   // configuration options
 });
 ```
@@ -99,73 +101,60 @@ const logger = new Logger({
 
 ## Description
 
-Logger fails to load configuration from `.pliprc.json` file when using relative paths in the `extends` property.
+`enabledLevels` is ignored when the logger is reconfigured with `configure()` after creation.
 
 ## Expected Behavior
 
-Configuration should load successfully and extend the base configuration.
+After calling `configure({ enabledLevels: ['error'] })`, only `error` messages should be emitted.
 
 ## Actual Behavior
 
-Logger throws error: `PLIP_E01004: Circular reference detected in configuration`
+`info` and `warn` messages are still printed to the console.
 
 ## Steps to Reproduce
 
-1. Create `.pliprc.json` with relative extends path:
-   ```json
-   {
-     "extends": "./configs/base.json",
-     "logLevel": "debug"
-   }
-   ```
-
-2. Create `configs/base.json`:
-   ```json
-   {
-     "format": "json",
-     "outputs": ["console"]
-   }
-   ```
-
-3. Initialize logger:
+1. Create a logger:
    ```javascript
-   const logger = new Logger(); // Loads .pliprc.json automatically
+   import { createPlip } from '@ru-dr/plip';
+
+   const logger = createPlip({ enabledLevels: ['info', 'warn', 'error'] });
    ```
 
-4. Error occurs during initialization
+2. Reconfigure it at runtime:
+   ```javascript
+   logger.configure({ enabledLevels: ['error'] });
+   ```
+
+3. Emit messages:
+   ```javascript
+   logger.info('should be suppressed');
+   logger.error('should be printed');
+   ```
+
+4. Observe that the `info` message is still printed
 
 ## Error Messages
 
 ```
-Error: PLIP_E01004: Circular reference detected in configuration
-    at ConfigLoader.loadConfig (/node_modules/plip-logger/lib/config.js:45)
-    at new Logger (/node_modules/plip-logger/lib/logger.js:23)
-    at /app/src/index.js:5:16
+[INFO] should be suppressed
+[ERROR] should be printed
 ```
 
 ## Configuration
 
-`.pliprc.json`:
-```json
-{
-  "extends": "./configs/base.json",
-  "logLevel": "debug"
-}
-```
+```javascript
+import { createPlip } from '@ru-dr/plip';
 
-`configs/base.json`:
-```json
-{
-  "format": "json",
-  "outputs": ["console"]
-}
+const logger = createPlip({
+  enabledLevels: ['info', 'warn', 'error'],
+  enableColors: true
+});
 ```
 
 ## Additional Context
 
-- Works fine with absolute paths
-- Occurs only with relative paths in extends
-- Directory structure is correct and files exist
+- Passing `enabledLevels` directly to `createPlip()` works as expected
+- Also reproducible with the `levels()` helper
 ```
 
 ### Performance Bug Report
@@ -180,7 +169,7 @@ Error: PLIP_E01004: Circular reference detected in configuration
 
 ## Description
 
-Memory usage continuously increases when using file output with high log volume, eventually causing out-of-memory errors.
+Memory usage continuously increases when using the file transport with high log volume, eventually causing out-of-memory errors.
 
 ## Expected Behavior
 
@@ -192,16 +181,17 @@ Memory usage grows continuously at ~10MB per hour, leading to application crashe
 
 ## Steps to Reproduce
 
-1. Configure logger with file output:
+1. Configure logger with a file transport:
    ```javascript
-   const logger = new Logger({
-     outputs: [{
-       type: 'file',
-       path: './app.log',
-       maxSize: '10MB',
-       maxFiles: 5
-     }]
-   });
+   import { createPlip, FileTransport } from '@ru-dr/plip';
+
+   const logger = createPlip();
+   logger.addTransport(new FileTransport({
+     name: 'file',
+     filename: './app.log',
+     maxSize: 10 * 1024 * 1024,
+     maxFiles: 5
+   }));
    ```
 
 2. Generate high volume of logs:
@@ -225,25 +215,25 @@ FATAL ERROR: Ineffective mark-compacts near heap limit Allocation failed - JavaS
 ## Configuration
 
 ```javascript
-const logger = new Logger({
-  logLevel: 'info',
-  format: 'json',
-  outputs: [{
-    type: 'file',
-    path: './logs/app.log',
-    maxSize: '10MB',
-    maxFiles: 5,
-    buffer: {
-      size: 1000,
-      flushInterval: 5000
-    }
-  }]
+import { createPlip, FileTransport } from '@ru-dr/plip';
+
+const logger = createPlip({
+  enabledLevels: ['info', 'warn', 'error'],
+  enableStructuredOutput: true
 });
+
+logger.addTransport(new FileTransport({
+  name: 'file',
+  filename: './logs/app.log',
+  format: 'json',
+  maxSize: 10 * 1024 * 1024,
+  maxFiles: 5
+}));
 ```
 
 ## Additional Context
 
-- Memory leak does not occur with console output only
+- Memory leak does not occur with the console transport only
 - Problem appears to be related to file rotation logic
 - Tested with Node.js 16.x and 18.x - same issue
 - Application handles ~10,000 log messages per minute
@@ -304,8 +294,8 @@ Include as much relevant information as possible:
 
 ### Configuration
 - [ ] Logger configuration
-- [ ] Environment variables
-- [ ] Configuration files
+- [ ] Transport configuration
+- [ ] Environment variables used to build the configuration
 - [ ] Package.json dependencies
 
 ### Context
@@ -320,14 +310,14 @@ Create the smallest possible code example that demonstrates the bug:
 
 ```javascript
 // Bug reproduction - keep it minimal
-const { Logger } = require('plip-logger');
+const { createPlip } = require('@ru-dr/plip');
 
-const logger = new Logger({
+const logger = createPlip({
   // minimal configuration that reproduces the issue
-  format: 'json'
+  enableStructuredOutput: true
 });
 
-logger.info('This should work but doesn't');
+logger.info('This should work but does not');
 // Add only the minimum code needed to show the bug
 ```
 
@@ -336,8 +326,8 @@ logger.info('This should work but doesn't');
 ### Configuration Issues
 - Invalid configuration syntax
 - Conflicting options
-- Environment variable problems
-- File path issues
+- Unexpected level filtering
+- Transport option problems
 
 ### Performance Problems
 - Memory leaks
@@ -380,7 +370,7 @@ Want to help fix bugs?
 For security-related bugs, please:
 
 1. **Do not** create public GitHub issues
-2. **Email us privately** at security@plip-logger.dev
+2. **Report it privately** through [GitHub's security advisories](https://github.com/ru-dr/plip/security/advisories/new)
 3. **Include** full details and reproduction steps
 4. **Wait** for our response before public disclosure
 

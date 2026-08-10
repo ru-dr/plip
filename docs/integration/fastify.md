@@ -17,10 +17,10 @@ const fastify = Fastify({
 // Log server startup
 fastify.listen({ port: 3000 }, (err, address) => {
   if (err) {
-    plip.error("💥 Failed to start server", err);
+    plip.error("Failed to start server", err);
     process.exit(1);
   }
-  plip.success(`🚀 Fastify server running at ${address}`);
+  plip.success(`Fastify server running at ${address}`);
 });
 ```
 
@@ -35,7 +35,7 @@ async function plipLoggerPlugin(fastify: FastifyInstance) {
     request.startTime = Date.now();
     request.requestId = crypto.randomUUID();
     
-    plip.info("📥 Request started", {
+    plip.info("Request started", {
       requestId: request.requestId,
       method: request.method,
       url: request.url,
@@ -48,7 +48,7 @@ async function plipLoggerPlugin(fastify: FastifyInstance) {
     const duration = Date.now() - (request.startTime || 0);
     const logLevel = reply.statusCode >= 400 ? 'error' : 'success';
     
-    plip[logLevel]("📤 Request completed", {
+    plip[logLevel]("Request completed", {
       requestId: request.requestId,
       method: request.method,
       url: request.url,
@@ -82,14 +82,14 @@ fastify.post('/users', {
     body: userSchema
   },
   preValidation: async (request, reply) => {
-    plip.debug("🔍 Validating user data", {
+    plip.debug("Validating user data", {
       requestId: request.requestId,
       hasEmail: !!request.body.email,
       hasPassword: !!request.body.password
     });
   }
 }, async (request, reply) => {
-  plip.success("✅ User data validated", {
+  plip.success("User data validated", {
     requestId: request.requestId
   });
   
@@ -116,15 +116,15 @@ fastify.setErrorHandler(async (error, request, reply) => {
   };
   
   if (error.statusCode === 400) {
-    plip.warn("⚠️ Bad request", errorData);
+    plip.warn("Bad request", errorData);
   } else if (error.statusCode === 401) {
-    plip.warn("🔒 Unauthorized", errorData);
+    plip.warn("Unauthorized", errorData);
   } else if (error.statusCode === 404) {
-    plip.info("🔍 Not found", errorData);
+    plip.info("Not found", errorData);
   } else if (error.statusCode >= 500) {
-    plip.error("💥 Server error", errorData);
+    plip.error("Server error", errorData);
   } else {
-    plip.debug("ℹ️ Client error", errorData);
+    plip.debug("Client error", errorData);
   }
   
   reply.status(error.statusCode || 500).send({
@@ -135,7 +135,7 @@ fastify.setErrorHandler(async (error, request, reply) => {
 
 // Validation error handler
 fastify.setSchemaErrorFormatter((errors, dataVar) => {
-  plip.warn("📋 Schema validation failed", {
+  plip.warn("Schema validation failed", {
     errors: errors.map(err => ({
       field: err.instancePath,
       message: err.message,
@@ -166,7 +166,7 @@ fastify.post('/auth/login', {
 }, async (request, reply) => {
   const { email, password } = request.body;
   
-  plip.info("🔐 Authentication attempt", {
+  plip.info("Authentication attempt", {
     requestId: request.requestId,
     email: email.replace(/(.{2}).*(@.*)/, '$1***$2'),
     ip: request.ip
@@ -175,7 +175,7 @@ fastify.post('/auth/login', {
   try {
     const user = await authenticateUser(email, password);
     
-    plip.success("✅ User authenticated", {
+    plip.success("User authenticated", {
       requestId: request.requestId,
       userId: user.id,
       email: user.email.replace(/(.{2}).*(@.*)/, '$1***$2')
@@ -185,7 +185,7 @@ fastify.post('/auth/login', {
     return { token, user: { id: user.id, name: user.name } };
     
   } catch (error) {
-    plip.warn("❌ Authentication failed", {
+    plip.warn("Authentication failed", {
       requestId: request.requestId,
       email: email.replace(/(.{2}).*(@.*)/, '$1***$2'),
       reason: error.message
@@ -214,7 +214,7 @@ fastify.get('/api/users/:id', {
   const { id } = request.params;
   const dbStartTime = Date.now();
   
-  plip.debug("🔍 Fetching user", {
+  plip.debug("Fetching user", {
     requestId: request.requestId,
     userId: id
   });
@@ -224,7 +224,7 @@ fastify.get('/api/users/:id', {
     const dbDuration = Date.now() - dbStartTime;
     
     if (!user) {
-      plip.warn("👤 User not found", {
+      plip.warn("User not found", {
         requestId: request.requestId,
         userId: id,
         dbDuration: `${dbDuration}ms`
@@ -234,7 +234,7 @@ fastify.get('/api/users/:id', {
       return { error: 'User not found' };
     }
     
-    plip.success("👤 User retrieved", {
+    plip.success("User retrieved", {
       requestId: request.requestId,
       userId: id,
       dbDuration: `${dbDuration}ms`,
@@ -246,7 +246,7 @@ fastify.get('/api/users/:id', {
   } catch (error) {
     const dbDuration = Date.now() - dbStartTime;
     
-    plip.error("💥 Database error", {
+    plip.error("Database error", {
       requestId: request.requestId,
       userId: id,
       dbDuration: `${dbDuration}ms`,
@@ -266,20 +266,23 @@ fastify.get('/api/users/:id', {
 ```typescript
 import fp from 'fastify-plugin';
 
+import type { LogLevel } from '@ru-dr/plip';
+
 interface PlipOptions {
-  level?: string;
+  levels?: LogLevel[];
   includeRequestBody?: boolean;
   includeResponseBody?: boolean;
 }
 
 async function plipPlugin(fastify: FastifyInstance, options: PlipOptions) {
-  // Configure Plip based on options
-  plip.configure({
-    level: options.level || 'info'
+  // Configure Plip based on options.
+  // `configure()` returns a NEW logger; it does not mutate the original.
+  const logger = plip.configure({
+    enabledLevels: options.levels || ['info', 'warn', 'error', 'success']
   });
   
   // Add Plip to Fastify instance
-  fastify.decorate('plip', plip);
+  fastify.decorate('plip', logger);
   
   // Request logging with optional body logging
   fastify.addHook('onRequest', async (request, reply) => {
@@ -298,13 +301,13 @@ async function plipPlugin(fastify: FastifyInstance, options: PlipOptions) {
       logData.body = request.body;
     }
     
-    plip.info("📥 Request received", logData);
+    logger.info("Request received", logData);
   });
   
   // Response logging
   fastify.addHook('onSend', async (request, reply, payload) => {
     if (options.includeResponseBody) {
-      plip.debug("📤 Response body", {
+      logger.debug("Response body", {
         requestId: request.requestId,
         body: payload
       });
@@ -316,7 +319,7 @@ async function plipPlugin(fastify: FastifyInstance, options: PlipOptions) {
   fastify.addHook('onResponse', async (request, reply) => {
     const duration = Date.now() - (request.startTime || 0);
     
-    plip.success("✅ Request completed", {
+    logger.success("Request completed", {
       requestId: request.requestId,
       statusCode: reply.statusCode,
       duration: `${duration}ms`
@@ -338,7 +341,7 @@ import plipPlugin from './plugins/plip-plugin';
 
 // Register with options
 fastify.register(plipPlugin, {
-  level: 'debug',
+  levels: ['debug', 'info', 'warn', 'error', 'success'],
   includeRequestBody: process.env.NODE_ENV === 'development',
   includeResponseBody: false
 });
@@ -366,25 +369,24 @@ const fastify = Fastify({
 });
 
 // Environment-specific configuration
-if (process.env.NODE_ENV === 'production') {
-  plip.configure({
-    level: 'info',
-    colors: false,
-    format: 'json'
-  });
-} else {
-  plip.configure({
-    level: 'debug',
-    colors: true
-  });
-}
+// `configure()` returns a NEW logger; it does not mutate the original.
+const logger = process.env.NODE_ENV === 'production'
+  ? plip.configure({
+      enabledLevels: ['info', 'warn', 'error', 'success'],
+      enableColors: false,
+      enableStructuredOutput: true // JSON line per log
+    })
+  : plip.configure({
+      enabledLevels: ['debug', 'info', 'warn', 'error', 'success', 'trace', 'verbose'],
+      enableColors: true
+    });
 
 // Request ID and timing middleware
 fastify.addHook('onRequest', async (request, reply) => {
   request.startTime = Date.now();
   request.requestId = crypto.randomUUID();
   
-  plip.debug("🔄 Request started", {
+  logger.debug("Request started", {
     requestId: request.requestId,
     method: request.method,
     url: request.url,
@@ -397,7 +399,7 @@ fastify.addHook('onResponse', async (request, reply) => {
   const duration = Date.now() - (request.startTime || 0);
   const logLevel = reply.statusCode >= 400 ? 'warn' : 'success';
   
-  plip[logLevel]("📊 Request metrics", {
+  plip[logLevel]("Request metrics", {
     requestId: request.requestId,
     method: request.method,
     url: request.url,
@@ -409,7 +411,7 @@ fastify.addHook('onResponse', async (request, reply) => {
 
 // Error handling
 fastify.setErrorHandler(async (error, request, reply) => {
-  plip.error("💥 Request error", {
+  logger.error("Request error", {
     requestId: request.requestId,
     method: request.method,
     url: request.url,
@@ -428,7 +430,7 @@ fastify.setErrorHandler(async (error, request, reply) => {
 
 // Routes
 fastify.get('/', async (request, reply) => {
-  plip.info("🏠 Home route accessed", {
+  logger.info("Home route accessed", {
     requestId: request.requestId
   });
   
@@ -439,7 +441,7 @@ fastify.get('/', async (request, reply) => {
 });
 
 fastify.get('/health', async (request, reply) => {
-  plip.debug("💓 Health check", {
+  logger.debug("Health check", {
     requestId: request.requestId
   });
   
@@ -458,7 +460,7 @@ const start = async () => {
       host: '0.0.0.0'
     });
     
-    plip.success("🚀 Fastify server started", {
+    logger.success("Fastify server started", {
       address,
       environment: process.env.NODE_ENV || 'development',
       nodeVersion: process.version,
@@ -466,7 +468,7 @@ const start = async () => {
     });
     
   } catch (error) {
-    plip.error("💥 Failed to start server", error);
+    logger.error("Failed to start server", error);
     process.exit(1);
   }
 };
@@ -483,7 +485,7 @@ start();
 fastify.addHook('onRequest', async (request, reply) => {
   // Only log essential info for high-traffic routes
   if (request.url.startsWith('/api/high-traffic')) {
-    plip.info("🚄 High traffic request", {
+    plip.info("High traffic request", {
       method: request.method,
       url: request.url
     });
