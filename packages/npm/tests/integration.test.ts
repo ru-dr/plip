@@ -64,7 +64,7 @@ describe('Integration Tests', () => {
       
       logger.addTransport(browserTransport);
       
-      await logger.info('Multi-transport message');
+      logger.info('Multi-transport message');
       
       // Should have logged to both console (default) and browser transport
       expect(logs).toHaveLength(2); // Console + Browser transport
@@ -81,8 +81,8 @@ describe('Integration Tests', () => {
       
       logger.addTransport(errorOnlyTransport);
       
-      await logger.info('Info message');
-      await logger.error('Error message');
+      logger.info('Info message');
+      logger.error('Error message');
       
       // Info should log once (default transport), error should log twice (both transports)
       expect(logs.filter(log => log.includes('Info message'))).toHaveLength(1);
