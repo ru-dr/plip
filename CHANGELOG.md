@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.1] - 2026-08-18
+
+No runtime changes; the published `dist/` output is identical to 2.0.0.
+
+### Changed
+- Test files are now type-checked. `tsconfig.json` excludes `tests/**` because it is
+  the emit config, so `bun run typecheck` never saw them; a new `tsconfig.test.json`
+  (`noEmit`, `src` + `tests`) is checked alongside it in the same script and in CI.
+- Removed `await` from calls to `logger.info()` / `logger.error()` in tests. Those
+  methods return `void`, so the `await` was a no-op (ts(80007)).
+- Fixed a type error in `tests/adapters.test.ts` surfaced by the new check:
+  `withAPIRoute` infers its signature from the handler, so the zero-argument test
+  handlers could not be called with a request.
+
+### Added
+- `packages/npm/DEVELOPMENT.md`, a contributor guide for the package: source layout,
+  build pipeline, and a note that `README.md`, `LICENSE` and `CHANGELOG.md` inside the
+  package are generated copies of the repo-root files.
+
 ## [2.0.0] - 2026-08-10
 
 ### Removed

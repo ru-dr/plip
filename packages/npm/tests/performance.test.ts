@@ -109,7 +109,7 @@ describe('Performance Tests', () => {
       const startTime = performance.now();
       
       for (let i = 0; i < messageCount; i++) {
-        await logger.info(`Message ${i}`, { iteration: i, timestamp: Date.now() });
+        logger.info(`Message ${i}`, { iteration: i, timestamp: Date.now() });
       }
       
       const endTime = performance.now();
@@ -158,7 +158,7 @@ describe('Performance Tests', () => {
       const startTime = performance.now();
       
       for (let i = 0; i < iterations; i++) {
-        await logger.info('Complex object log', complexObject);
+        logger.info('Complex object log', complexObject);
       }
       
       const endTime = performance.now();
@@ -184,7 +184,7 @@ describe('Performance Tests', () => {
       const startTime = performance.now();
       
       for (let i = 0; i < messageCount; i++) {
-        await logger.info(`Multi-transport message ${i}`);
+        logger.info(`Multi-transport message ${i}`);
       }
       
       const endTime = performance.now();

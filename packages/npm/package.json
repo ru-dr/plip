@@ -1,6 +1,6 @@
 {
   "name": "@ru-dr/plip",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "A delightful, colorful logging experience for modern applications",
   "main": "dist/cjs/index.js",
   "module": "dist/esm/index.js",
@@ -44,7 +44,7 @@
     "build:esm": "tsc -p tsconfig.json",
     "build:cjs": "tsc -p tsconfig.cjs.json",
     "build:finalize": "node scripts/prepare-dist.mjs",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "test:coverage": "bun test --coverage"

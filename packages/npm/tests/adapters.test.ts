@@ -214,11 +214,11 @@ describe('NextJSAdapter', () => {
     const { logger, entries } = capturingLogger();
     const adapter = new NextJSAdapter(logger);
 
-    const ok = adapter.withAPIRoute(async () => 'result');
+    const ok = adapter.withAPIRoute(async (_req: ReturnType<typeof request>) => 'result');
     expect(await ok(request())).toBe('result');
     expect(entries[1]!.level).toBe('success');
 
-    const bad = adapter.withAPIRoute(async () => {
+    const bad = adapter.withAPIRoute(async (_req: ReturnType<typeof request>) => {
       throw new Error('route failed');
     });
     await expect(bad(request())).rejects.toThrow('route failed');
